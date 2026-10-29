@@ -14,7 +14,7 @@ for d in "$DEST"/*/; do
     echo "WARN $n: not a folder in the store (skipped)"
   fi
 done
-find "$DEST" -name .DS_Store -delete
+find "$DEST" \( -name .DS_Store -o -name __pycache__ \) -prune -exec rm -rf {} +
 # Personal names and private repos must not reach this public repo.
 if grep -r -n -I -i -E 'sahildave|indhuja|\bSahil\b|/Users/[a-z]+/|Coduo Brain' "$DEST"; then
   echo "ERROR: personal reference above; scrub it in the store, then sync again." >&2
