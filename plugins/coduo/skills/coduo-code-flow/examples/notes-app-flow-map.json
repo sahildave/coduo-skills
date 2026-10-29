@@ -1,0 +1,340 @@
+{
+  "schemaVersion": "1.0.0",
+  "repository": "Notes",
+  "description": "Offline-first notes client: local store of record, background sync, and a small REST boundary.",
+  "generatedFrom": ["docs/architecture.md", "src/", "src/sync/"],
+  "architecturalConstraints": [
+    "The local database is the store of record; the API is a replication peer, never a read path for the UI.",
+    "Features read and write through the notes store; no feature constructs its own API client.",
+    "Every write lands locally before it is queued for sync, so the editor never waits on the network."
+  ],
+  "knownIssues": [
+    {
+      "kind": "unbounded-queue",
+      "path": ["src/sync/queue.ts"],
+      "source": "docs/architecture.md"
+    }
+  ],
+  "dashboardCapabilities": {
+    "flowDiscovery": [
+      "Search by flow label, operation, or source path",
+      "Filter user journeys separately from system flows"
+    ],
+    "manualQA": {
+      "contract": "Each user flow defines checks with explicit expected results.",
+      "persistence": "Checkbox and status state is stored in the browser opening the dashboard."
+    }
+  },
+  "layout": {
+    "width": 1400,
+    "height": 560,
+    "lanes": [
+      { "y": 12, "label": "Interface" },
+      { "y": 270, "label": "Data, sync, and storage" }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "user",
+      "label": "User",
+      "layer": "external",
+      "kind": "actor",
+      "paths": [],
+      "technology": [],
+      "description": "Keyboard and pointer input that enters the app.",
+      "responsibilities": ["Open, read, edit, and search notes"],
+      "position": { "x": 40, "y": 60 }
+    },
+    {
+      "id": "app-shell",
+      "label": "App shell",
+      "layer": "runtime",
+      "kind": "entry-point",
+      "paths": ["src/main.tsx", "src/App.tsx"],
+      "technology": ["React", "Vite"],
+      "description": "Boots providers, hydrates the store from the local database, and mounts the router.",
+      "responsibilities": ["Hydrate before first paint", "Mount providers once"],
+      "position": { "x": 260, "y": 60 }
+    },
+    {
+      "id": "router",
+      "label": "Router",
+      "layer": "presentation",
+      "kind": "routing",
+      "paths": ["src/routes.tsx"],
+      "technology": ["React Router"],
+      "description": "Maps the URL to the list, editor, or search surface.",
+      "responsibilities": ["Own shareable view state in the URL"],
+      "position": { "x": 480, "y": 60 }
+    },
+    {
+      "id": "note-list",
+      "label": "Note list",
+      "layer": "feature",
+      "kind": "feature-group",
+      "paths": ["src/features/list/NoteList.tsx"],
+      "technology": [],
+      "description": "Renders the note index and selects the active note.",
+      "responsibilities": ["Subscribe to the store", "Select the active note"],
+      "position": { "x": 700, "y": 20 }
+    },
+    {
+      "id": "note-editor",
+      "label": "Note editor",
+      "layer": "feature",
+      "kind": "user-flow-controller",
+      "paths": ["src/features/editor/NoteEditor.tsx", "src/features/editor/use-draft.ts"],
+      "technology": [],
+      "description": "Edits note body and title, committing debounced drafts to the store.",
+      "responsibilities": ["Debounce keystrokes", "Never block typing on I/O"],
+      "position": { "x": 700, "y": 120 }
+    },
+    {
+      "id": "search-panel",
+      "label": "Search panel",
+      "layer": "feature",
+      "kind": "feature-group",
+      "paths": ["src/features/search/SearchPanel.tsx"],
+      "technology": [],
+      "description": "Full-text query over the loaded notes with highlighted results.",
+      "responsibilities": ["Query the store", "Highlight matches"],
+      "position": { "x": 920, "y": 20 }
+    },
+    {
+      "id": "notes-store",
+      "label": "Notes store",
+      "layer": "state",
+      "kind": "store",
+      "paths": ["src/store/notes.ts"],
+      "technology": ["Zustand"],
+      "description": "Client-authoritative note state that every feature reads and writes.",
+      "responsibilities": ["Single read path for features", "Apply remote changes"],
+      "position": { "x": 480, "y": 300 }
+    },
+    {
+      "id": "notes-service",
+      "label": "Notes service",
+      "layer": "data",
+      "kind": "service",
+      "paths": ["src/services/notes.ts"],
+      "technology": [],
+      "description": "Persists note writes locally and enqueues them for replication.",
+      "responsibilities": ["Write locally first", "Enqueue every change once"],
+      "position": { "x": 700, "y": 300 }
+    },
+    {
+      "id": "sync-worker",
+      "label": "Sync worker",
+      "layer": "application",
+      "kind": "automation",
+      "paths": ["src/sync/worker.ts", "src/sync/queue.ts"],
+      "technology": ["Web Worker"],
+      "description": "Drains the change queue on an interval and applies remote changes back.",
+      "responsibilities": ["Batch and retry", "Resolve conflicts last-write-wins"],
+      "position": { "x": 920, "y": 300 }
+    },
+    {
+      "id": "api-client",
+      "label": "API client",
+      "layer": "integration",
+      "kind": "client",
+      "paths": ["src/sync/client.ts"],
+      "technology": ["fetch"],
+      "description": "Authenticated transport for the sync endpoints.",
+      "responsibilities": ["Attach the session token", "Surface transport errors"],
+      "position": { "x": 1140, "y": 300 }
+    },
+    {
+      "id": "local-db",
+      "label": "Local database",
+      "layer": "storage",
+      "kind": "storage",
+      "paths": ["src/storage/db.ts"],
+      "technology": ["IndexedDB"],
+      "description": "Store of record for notes and the pending change queue.",
+      "responsibilities": ["Survive reload and offline"],
+      "position": { "x": 700, "y": 420 }
+    },
+    {
+      "id": "notes-api",
+      "label": "Notes API",
+      "layer": "server",
+      "kind": "external-service",
+      "paths": [],
+      "technology": ["REST"],
+      "description": "Replication peer holding the shared copy of every note.",
+      "responsibilities": ["Accept batches", "Return changes since a cursor"],
+      "position": { "x": 1140, "y": 420 }
+    }
+  ],
+  "edges": [
+    { "id": "e01", "source": "user", "target": "app-shell", "relation": "opens", "description": "User launches the app.", "protocol": "page load" },
+    { "id": "e02", "source": "app-shell", "target": "router", "relation": "mounts", "description": "Shell mounts the route tree.", "protocol": "React render" },
+    { "id": "e03", "source": "router", "target": "note-list", "relation": "routes", "description": "Index route renders the list.", "protocol": "typed route" },
+    { "id": "e04", "source": "router", "target": "note-editor", "relation": "routes", "description": "Note route renders the editor.", "protocol": "typed route" },
+    { "id": "e05", "source": "router", "target": "search-panel", "relation": "routes", "description": "Search route renders the panel.", "protocol": "typed route" },
+    { "id": "e06", "source": "user", "target": "note-editor", "relation": "types", "description": "User edits note text.", "protocol": "UI events" },
+    { "id": "e07", "source": "user", "target": "search-panel", "relation": "searches", "description": "User enters a query.", "protocol": "UI events" },
+    { "id": "e08", "source": "user", "target": "note-list", "relation": "selects note", "description": "User picks a note from the index.", "protocol": "UI action" },
+    { "id": "e09", "source": "note-list", "target": "notes-store", "relation": "subscribes", "description": "List reads note summaries.", "protocol": "selector subscription" },
+    { "id": "e10", "source": "note-editor", "target": "notes-store", "relation": "commits draft", "description": "Debounced draft lands in state.", "protocol": "store action" },
+    { "id": "e11", "source": "search-panel", "target": "notes-store", "relation": "queries", "description": "Panel filters loaded notes.", "protocol": "selector subscription" },
+    { "id": "e12", "source": "notes-store", "target": "notes-service", "relation": "persists through", "description": "State changes are written down.", "protocol": "function call" },
+    { "id": "e13", "source": "notes-service", "target": "local-db", "relation": "writes", "description": "Note and queue rows are stored.", "protocol": "IndexedDB" },
+    { "id": "e14", "source": "notes-service", "target": "sync-worker", "relation": "enqueues change", "description": "Each write becomes a queue entry.", "protocol": "postMessage" },
+    { "id": "e15", "source": "sync-worker", "target": "api-client", "relation": "sends batch", "description": "Worker drains the queue.", "protocol": "function call" },
+    { "id": "e16", "source": "api-client", "target": "notes-api", "relation": "requests", "description": "Batch upload and change pull.", "protocol": "HTTPS REST" },
+    { "id": "e17", "source": "sync-worker", "target": "notes-store", "relation": "applies remote changes", "description": "Remote edits merge into state.", "protocol": "store action" },
+    { "id": "e18", "source": "app-shell", "target": "notes-service", "relation": "hydrates from", "description": "Shell loads persisted notes at boot.", "protocol": "async startup" }
+  ],
+  "flows": [
+    {
+      "id": "edit-note",
+      "category": "user",
+      "label": "Edit a note",
+      "summary": "Type into a note, commit the debounced draft to the store, and persist it locally without waiting on the network.",
+      "trigger": "Type in the editor on the note route.",
+      "steps": ["user", "router", "note-editor", "notes-store", "notes-service", "local-db"],
+      "edgeIds": ["e06", "e04", "e10", "e12", "e13"],
+      "operations": ["commit-draft", "persist-note"],
+      "successOutcome": "The note body updates instantly, the list title follows, and the change survives a reload.",
+      "failureBehavior": "A failed local write raises a save-failed banner and the draft stays in the editor for retry.",
+      "sourcePaths": ["src/features/editor/NoteEditor.tsx", "src/services/notes.ts"],
+      "qa": {
+        "manual": [
+          {
+            "id": "instant-typing",
+            "label": "Type continuously for ten seconds with the network offline.",
+            "expected": "No input lag or dropped characters, and no error appears."
+          },
+          {
+            "id": "survives-reload",
+            "label": "Edit a note, wait one second, then reload the page.",
+            "expected": "The edited text is present after hydration."
+          }
+        ],
+        "automated": [
+          {
+            "label": "Editor draft and persistence tests",
+            "command": "npm run test -- src/features/editor/use-draft.test.ts src/services/notes.test.ts",
+            "paths": ["src/features/editor/use-draft.test.ts", "src/services/notes.test.ts"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "search-notes",
+      "category": "user",
+      "label": "Search notes",
+      "summary": "Filter loaded notes by query and open a result without leaving the search surface.",
+      "trigger": "Enter a query in the search panel.",
+      "steps": ["user", "router", "search-panel", "notes-store", "notes-service"],
+      "edgeIds": ["e07", "e05", "e11", "e12"],
+      "operations": ["query-notes"],
+      "successOutcome": "Matching notes list with highlighted terms within one frame of typing.",
+      "failureBehavior": "An empty result set renders the no-matches state rather than a blank panel.",
+      "sourcePaths": ["src/features/search/SearchPanel.tsx"],
+      "qa": {
+        "manual": [
+          {
+            "id": "highlight",
+            "label": "Search for a term that appears in a note body.",
+            "expected": "The note is listed and the term is highlighted in the preview."
+          },
+          {
+            "id": "no-matches",
+            "label": "Search for a term no note contains.",
+            "expected": "The no-matches state renders and the previous results are cleared."
+          }
+        ],
+        "automated": [
+          {
+            "label": "Search panel tests",
+            "command": "npm run test -- src/features/search/SearchPanel.test.tsx",
+            "paths": ["src/features/search/SearchPanel.test.tsx"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "open-note",
+      "category": "user",
+      "label": "Open a note from the list",
+      "summary": "Select a note in the index and render it in the editor from state already loaded.",
+      "trigger": "Click a row in the note list.",
+      "steps": ["user", "note-list", "notes-store"],
+      "edgeIds": ["e08", "e09"],
+      "operations": ["select-note"],
+      "successOutcome": "The editor shows the selected note with no loading state, because the note is already in the store.",
+      "failureBehavior": "A missing note id routes back to the list rather than rendering an empty editor.",
+      "sourcePaths": ["src/features/list/NoteList.tsx"],
+      "qa": {
+        "manual": [
+          {
+            "id": "no-spinner",
+            "label": "Select several notes in quick succession.",
+            "expected": "Each opens immediately with no spinner between selections."
+          }
+        ],
+        "automated": [
+          {
+            "label": "Note list selection tests",
+            "command": "npm run test -- src/features/list/NoteList.test.tsx",
+            "paths": ["src/features/list/NoteList.test.tsx"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "cold-start",
+      "category": "system",
+      "label": "Cold start and hydrate",
+      "summary": "Read persisted notes from the local database, populate the store, and mount the routed list before the first sync runs.",
+      "trigger": "Application load.",
+      "steps": ["user", "app-shell", "notes-service", "local-db", "router", "note-list", "notes-store"],
+      "edgeIds": ["e01", "e18", "e13", "e02", "e03", "e09"],
+      "operations": ["hydrate-store", "mount-routes"],
+      "successOutcome": "The list renders real notes on first paint, offline included.",
+      "failureBehavior": "A corrupt local database is cleared and the app boots empty rather than failing to mount.",
+      "sourcePaths": ["src/main.tsx", "src/storage/db.ts"],
+      "qa": {
+        "automated": [
+          {
+            "label": "Boot and hydration tests",
+            "command": "npm run test -- src/App.test.tsx src/storage/db.test.ts",
+            "paths": ["src/App.test.tsx", "src/storage/db.test.ts"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "background-sync",
+      "category": "system",
+      "label": "Background sync",
+      "summary": "Drain the pending change queue to the API, pull changes since the last cursor, and merge them into the store.",
+      "trigger": "Sync interval elapses or the app regains connectivity.",
+      "steps": ["notes-service", "sync-worker", "api-client", "notes-api", "notes-store"],
+      "edgeIds": ["e14", "e15", "e16", "e17"],
+      "operations": ["push-batch", "pull-since-cursor", "merge-remote"],
+      "successOutcome": "Local edits reach the server and remote edits appear without a reload.",
+      "failureBehavior": "A failed batch stays queued, retries with backoff, and never drops a local change.",
+      "sourcePaths": ["src/sync/worker.ts", "src/sync/queue.ts"],
+      "qa": {
+        "manual": [
+          {
+            "id": "offline-queue",
+            "label": "Edit three notes offline, then reconnect.",
+            "expected": "All three reach the server and the queue drains to empty."
+          }
+        ],
+        "automated": [
+          {
+            "label": "Sync queue and merge tests",
+            "command": "npm run test -- src/sync/queue.test.ts src/sync/merge.test.ts",
+            "paths": ["src/sync/queue.test.ts", "src/sync/merge.test.ts"]
+          }
+        ]
+      }
+    }
+  ]
+}

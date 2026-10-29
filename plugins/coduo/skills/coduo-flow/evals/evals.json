@@ -1,0 +1,51 @@
+{
+  "skill_name": "coduo-flow",
+  "evals": [
+    {
+      "id": 0,
+      "name": "idea-validation-capture",
+      "prompt": "We spent an hour going back and forth on whether to add a shared-clipboard feature to Rulr, our Mac utility. Capture what we worked out so the team can pick it up.\n\nWhat came out of it:\n- Rulr is $19 one-time, ~4,200 paying users, solo-developer. Shared clipboard would be the first feature needing a server.\n- Competitors: Paste ($3.99/mo subscription, has cloud sync), Maccy (free, open source, local only), Alfred (£34 powerpack, local only). Nobody at our price point has sync.\n- Support inbox: 61 requests for 'clipboard on my other Mac' in 8 months, out of ~900 tickets. Third most-requested thing after Windows and iPad.\n- A server breaks the current promise on the site: 'nothing leaves your Mac.' That line is in our App Store description too.\n- End-to-end encryption via CloudKit private database would keep the promise mostly intact, costs nothing until ~1TB, and only works Apple-to-Apple. Rules out the Windows users who were asking.\n- One-time pricing cannot fund ongoing server cost. Either sync becomes a subscription add-on (~$2/mo) or we eat it.\n- Nobody has validated that the 61 people would pay. That's the thing we're least sure about.\n- Decided: build a CloudKit prototype behind a flag before touching pricing. Blocked on whether we're willing to subscription-ify anything at all, which is a founder call not a product one.",
+      "expected_output": "A folder of per-topic markdown notes with dependency frontmatter, a flow.json, and a generated self-contained flow.html",
+      "assertions": [
+        "The notes form one connected dependency graph: at least 4 notes, and every note is wired to at least one other via depends_on or unlocks",
+        "Every note carries frontmatter with id, title, node, kind, status and summary",
+        "depends_on and unlocks are exact inverses across all notes, with no dangling ids",
+        "A flow.json exists declaring title and a kind vocabulary",
+        "A flow.html is generated and is self-contained (no external http(s) script/style/img references)",
+        "flow.html embeds every note's content, so a card click can open it without a network request",
+        "check_flow.py exits 0 against the produced folder",
+        "Each note's summary states a conclusion a reader could repeat, not just the subject it covers"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "user-flow-mapping",
+      "prompt": "Map the onboarding flow for Tempo, our habit-tracking iOS app, so the designer and I stop arguing about it from memory.\n\nHow it works today: cold launch goes to a value-prop carousel (3 cards, skippable). Then 'pick your first habit' with 8 presets plus a custom option. Then notification permission — if they deny, we show a soft-ask explainer once and never again, and the whole streak feature silently does nothing, which is our biggest complaint source. Then the paywall: weekly $2.99, annual $24.99, lifetime $49.99, with a 7-day trial on annual only. Skippable via a small X, which 40% do. Skipping lands you in the free tier: 1 habit, no streak history beyond 7 days.\n\nIf they subscribe, they land on the Today screen. If they skip, they land on Today too but with an upgrade banner. Existing users who reinstall get restored via receipt and skip everything except the carousel.\n\nWe know two things are broken: the notification denial path is a dead end, and there's no way back to the paywall from the free tier except the banner, which people say they don't see.",
+      "assertions": [
+        "The notes form one connected dependency graph: at least 4 notes, and every note is wired to at least one other via depends_on or unlocks",
+        "Every note carries frontmatter with id, title, node, kind, status and summary",
+        "depends_on and unlocks are exact inverses across all notes, with no dangling ids",
+        "A flow.json exists declaring title and a kind vocabulary",
+        "A flow.html is generated and is self-contained (no external http(s) script/style/img references)",
+        "flow.html embeds every note's content, so a card click can open it without a network request",
+        "check_flow.py exits 0 against the produced folder",
+        "Each note's summary states a conclusion a reader could repeat, not just the subject it covers"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "multi-epic-planning",
+      "prompt": "Turn our Q1 migration into a plan I can share with the team. Seven workstreams, and I need to see what blocks what.\n\n1. Postgres 14 -> 17 upgrade. Two weeks. Nothing else can move until this lands because the new partitioning is what everything else assumes.\n2. Split the monolith's billing module into its own service. Four weeks. Needs the Postgres upgrade first (uses declarative partitioning), and needs the shared auth library extracted.\n3. Extract the shared auth library. One week. No dependencies, can start now.\n4. Move file uploads from local disk to S3. Three weeks. Independent of everything, but ops wants it before the billing split so there's one less stateful thing in the monolith.\n5. New billing UI. Three weeks. Cannot start until the billing service has a stable API, which is week 3 of the billing split.\n6. Delete the legacy webhook handler. Two days. Blocked on billing service, since it's the last consumer.\n7. SOC 2 evidence collection. Ongoing all quarter, but the auditor needs the S3 move done because local disk storage is a finding.\n\nRisk we keep talking about: only one person knows the billing module and she's out for two weeks in February.",
+      "assertions": [
+        "The notes form one connected dependency graph: at least 4 notes, and every note is wired to at least one other via depends_on or unlocks",
+        "Every note carries frontmatter with id, title, node, kind, status and summary",
+        "depends_on and unlocks are exact inverses across all notes, with no dangling ids",
+        "A flow.json exists declaring title and a kind vocabulary",
+        "A flow.html is generated and is self-contained (no external http(s) script/style/img references)",
+        "flow.html embeds every note's content, so a card click can open it without a network request",
+        "check_flow.py exits 0 against the produced folder",
+        "Each note's summary states a conclusion a reader could repeat, not just the subject it covers"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "coduo-skills",
+  "owner": { "name": "Sahil Dave" },
+  "metadata": {
+    "description": "Coduo's skills for turning an idea into an epic, cutting it into tickets, running it unattended with coduo-afk, and landing the result."
+  },
+  "plugins": [
+    {
+      "name": "coduo",
+      "source": "./plugins/coduo",
+      "description": "Coduo's skills: the epic, tickets and AFK-run workflow (coduo-epic, coduo-tickets, coduo-afk, coduo-implement, coduo-land-pr), product memory and prototypes, landing copy and pricing, SEO research, and repo setup. Slash-only: coduo-jev."
+    },
+    {
+      "name": "mattpocock-skills",
+      "source": { "source": "github", "repo": "mattpocock/skills" },
+      "description": "Matt Pocock's engineering skills, from upstream. coduo-epic wraps to-spec, coduo-tickets wraps to-tickets, coduo-implement wraps implement, and the coduo-afk closeout review runs code-review."
+    }
+  ]
+}

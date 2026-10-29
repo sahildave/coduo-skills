@@ -1,0 +1,1447 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Flow map</title>
+    <style>
+      :root {
+        --brand: #5059ff;
+        --brand-hover: #4a52ee;
+        --brand-tint: rgb(80 89 255 / 0.09);
+        --canvas: #fafafa;
+        --surface-1: #ffffff;
+        --surface-2: #f4f4f5;
+        --hairline: #e4e4e7;
+        --hairline-strong: #d4d4d8;
+        --fg: #09090b;
+        --fg-muted: #71717a;
+        --fg-subtle: #a1a1aa;
+        --success: #16803c;
+        --warning: #b45309;
+        --error: #dc2626;
+        --node-width: 184;
+        --node-height: 58;
+      }
+
+      :root.dark {
+        --brand: #5059ff;
+        --brand-hover: #6d75ff;
+        --brand-tint: rgb(80 89 255 / 0.16);
+        --canvas: #09090b;
+        --surface-1: #18181b;
+        --surface-2: #27272a;
+        --hairline: #27272a;
+        --hairline-strong: #3f3f46;
+        --fg: #fafafa;
+        --fg-muted: #a1a1aa;
+        --fg-subtle: #71717a;
+        --success: #22c55e;
+        --warning: #f59e0b;
+        --error: #f87171;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+      body {
+        background: var(--canvas);
+        color: var(--fg);
+        font-family:
+          'Public Sans',
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+        font-size: 13px;
+      }
+      button {
+        font: inherit;
+      }
+      .app {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      .topbar {
+        min-height: 56px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--hairline);
+        background: var(--surface-1);
+      }
+      .title-wrap {
+        min-width: 0;
+        flex: 1;
+      }
+      h1 {
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.25;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+      .subtitle {
+        margin-top: 2px;
+        color: var(--fg-muted);
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .tool-button {
+        min-width: 28px;
+        height: 28px;
+        padding: 0 8px;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        background: var(--surface-1);
+        color: var(--fg);
+        cursor: pointer;
+      }
+      .tool-button:hover {
+        border-color: var(--hairline-strong);
+        background: var(--surface-2);
+      }
+      .tool-button:focus-visible,
+      .flow-button:focus-visible {
+        outline: 2px solid rgb(80 89 255 / 0.5);
+        outline-offset: 1px;
+      }
+      .stats {
+        color: var(--fg-muted);
+        font-size: 12px;
+        padding-inline: 4px;
+      }
+      .workspace {
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 440px;
+      }
+      .diagram-pane {
+        min-width: 0;
+        min-height: 700px;
+        position: relative;
+        overflow: hidden;
+        background: var(--canvas);
+      }
+      #architecture-svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+        min-height: 700px;
+        touch-action: none;
+        cursor: grab;
+      }
+      #architecture-svg.dragging {
+        cursor: grabbing;
+      }
+      .panel {
+        min-width: 0;
+        border-inline-start: 1px solid var(--hairline);
+        background: var(--surface-1);
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - 56px);
+      }
+      .panel-header {
+        padding: 12px;
+        border-bottom: 1px solid var(--hairline);
+      }
+      .flow-tools {
+        display: grid;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .flow-search {
+        width: 100%;
+        height: 28px;
+        padding: 0 8px;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        background: var(--surface-1);
+        color: var(--fg);
+      }
+      .flow-search::placeholder {
+        color: var(--fg-subtle);
+      }
+      .flow-filters {
+        display: flex;
+        gap: 4px;
+      }
+      .filter-button {
+        height: 28px;
+        padding: 0 8px;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        background: var(--surface-1);
+        color: var(--fg-muted);
+        cursor: pointer;
+      }
+      .filter-button[aria-pressed='true'] {
+        border-color: var(--brand);
+        background: var(--brand-tint);
+        color: var(--fg);
+      }
+      .panel h2 {
+        margin: 0 0 4px;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: -0.1px;
+      }
+      .panel p {
+        margin: 0;
+        color: var(--fg-muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .flow-list {
+        overflow: auto;
+        padding: 4px 0;
+        max-height: 42%;
+      }
+      .flow-empty {
+        padding: 16px 12px;
+        color: var(--fg-muted);
+      }
+      .flow-section-label {
+        padding: 8px 12px 4px;
+        color: var(--fg-muted);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+      }
+      .flow-button {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 24px minmax(0, 1fr);
+        gap: 8px;
+        padding: 9px 12px;
+        border: 0;
+        border-inline-start: 2px solid transparent;
+        background: transparent;
+        color: var(--fg);
+        text-align: start;
+        cursor: pointer;
+      }
+      .flow-button:hover {
+        background: var(--surface-2);
+      }
+      .flow-button[aria-pressed='true'] {
+        background: var(--brand-tint);
+        border-inline-start-color: var(--brand);
+      }
+      .flow-number {
+        width: 20px;
+        height: 20px;
+        display: inline-grid;
+        place-items: center;
+        border: 1px solid var(--hairline-strong);
+        border-radius: 50%;
+        color: var(--fg-muted);
+        font:
+          11px/1 'JetBrains Mono',
+          ui-monospace,
+          monospace;
+      }
+      .flow-button[aria-pressed='true'] .flow-number {
+        border-color: var(--brand);
+        color: var(--brand-hover);
+      }
+      .flow-label {
+        display: block;
+        font-weight: 600;
+        line-height: 20px;
+      }
+      .flow-summary {
+        display: block;
+        margin-top: 2px;
+        color: var(--fg-muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .qa-detail {
+        display: none;
+        flex: 1;
+        min-height: 0;
+        border-top: 1px solid var(--hairline);
+        overflow: auto;
+        padding: 12px;
+      }
+      .qa-detail.visible {
+        display: block;
+      }
+      .qa-heading-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .qa-heading-row h3 {
+        margin: 0;
+        flex: 1;
+        font-size: 13px;
+      }
+      .qa-status {
+        height: 28px;
+        max-width: 130px;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        background: var(--surface-1);
+        color: var(--fg);
+      }
+      .qa-meta {
+        margin: 8px 0 0;
+        color: var(--fg-muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .qa-block {
+        margin-top: 12px;
+      }
+      .qa-block h4 {
+        margin: 0 0 6px;
+        font-size: 11px;
+        letter-spacing: 0.35px;
+        text-transform: uppercase;
+        color: var(--fg-muted);
+      }
+      .step-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .step-list li {
+        padding: 3px 6px;
+        border: 1px solid var(--hairline);
+        border-radius: 999px;
+        font-size: 11px;
+      }
+      .qa-check {
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr);
+        gap: 6px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--hairline);
+      }
+      .qa-check:last-child {
+        border-bottom: 0;
+      }
+      .qa-check input {
+        margin: 2px 0 0;
+      }
+      .qa-check-label {
+        line-height: 1.35;
+      }
+      .qa-expected {
+        display: block;
+        margin-top: 2px;
+        color: var(--fg-muted);
+        font-size: 11px;
+      }
+      .auto-check {
+        padding: 7px 0;
+        border-bottom: 1px solid var(--hairline);
+      }
+      .auto-check:last-child {
+        border-bottom: 0;
+      }
+      .auto-check-label {
+        font-weight: 600;
+      }
+      .command-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 6px;
+        margin-top: 5px;
+      }
+      .command-row code {
+        min-width: 0;
+        padding: 5px 6px;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        background: var(--canvas);
+        color: var(--fg-muted);
+        font:
+          10.5px/1.35 'JetBrains Mono',
+          ui-monospace,
+          monospace;
+        overflow-wrap: anywhere;
+      }
+      .copy-command {
+        height: 28px;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        background: var(--surface-1);
+        color: var(--fg);
+        cursor: pointer;
+      }
+      .legend {
+        margin-top: auto;
+        padding: 10px 12px;
+        border-top: 1px solid var(--hairline);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 10px;
+      }
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        color: var(--fg-muted);
+        font-size: 11px;
+      }
+      .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--legend-color);
+      }
+      .lane-label {
+        fill: var(--fg-muted);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+      }
+      .lane-rule {
+        stroke: var(--hairline);
+        stroke-width: 1;
+      }
+      .edge {
+        fill: none;
+        stroke: var(--hairline-strong);
+        stroke-width: 1.25;
+        opacity: 0.64;
+        transition:
+          opacity 120ms ease,
+          stroke 120ms ease,
+          stroke-width 120ms ease;
+      }
+      .edge.is-muted {
+        opacity: 0.08;
+      }
+      .edge.is-active {
+        stroke: var(--brand);
+        stroke-width: 3;
+        opacity: 1;
+      }
+      .edge.is-related {
+        stroke: var(--fg-muted);
+        stroke-width: 2;
+        opacity: 0.9;
+      }
+      .node {
+        cursor: pointer;
+        outline: none;
+      }
+      .node rect {
+        fill: var(--surface-1);
+        stroke: var(--hairline-strong);
+        stroke-width: 1;
+        rx: 6;
+        transition:
+          opacity 120ms ease,
+          stroke 120ms ease,
+          stroke-width 120ms ease,
+          fill 120ms ease;
+      }
+      .node .accent {
+        stroke: var(--node-color);
+        stroke-width: 3;
+      }
+      .node .node-label {
+        fill: var(--fg);
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .node .node-layer {
+        fill: var(--fg-muted);
+        font-size: 10.5px;
+        letter-spacing: 0.25px;
+      }
+      .node.is-muted {
+        opacity: 0.18;
+      }
+      .node.is-active rect {
+        fill: var(--brand-tint);
+        stroke: var(--brand);
+        stroke-width: 2;
+      }
+      .node.is-related rect {
+        stroke: var(--fg-muted);
+        stroke-width: 2;
+      }
+      .node:focus-visible rect {
+        stroke: var(--brand);
+        stroke-width: 2;
+      }
+      .tooltip {
+        position: absolute;
+        z-index: 10;
+        width: min(300px, calc(100% - 24px));
+        padding: 10px 12px;
+        border: 1px solid var(--hairline-strong);
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--fg);
+        pointer-events: none;
+        opacity: 0;
+        transform: translateY(4px);
+        transition:
+          opacity 80ms ease,
+          transform 80ms ease;
+      }
+      .tooltip.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .tooltip-title {
+        font-weight: 600;
+        margin-bottom: 3px;
+      }
+      .tooltip-path {
+        color: var(--brand-hover);
+        font:
+          11px/1.4 'JetBrains Mono',
+          ui-monospace,
+          monospace;
+        overflow-wrap: anywhere;
+      }
+      .tooltip-description {
+        color: var(--fg-muted);
+        font-size: 12px;
+        line-height: 1.4;
+        margin-top: 5px;
+      }
+      .hint {
+        position: absolute;
+        inset-inline-start: 12px;
+        bottom: 12px;
+        padding: 5px 8px;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        background: var(--surface-1);
+        color: var(--fg-muted);
+        font-size: 11px;
+        pointer-events: none;
+      }
+      @media (max-width: 900px) {
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+        .diagram-pane {
+          min-height: 560px;
+        }
+        #architecture-svg {
+          min-height: 560px;
+        }
+        .panel {
+          max-height: none;
+          border-inline-start: 0;
+          border-top: 1px solid var(--hairline);
+        }
+        .flow-list {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          overflow: visible;
+        }
+        .legend {
+          margin-top: 0;
+        }
+      }
+      @media (max-width: 620px) {
+        .topbar {
+          align-items: flex-start;
+          flex-wrap: wrap;
+        }
+        .toolbar {
+          width: 100%;
+        }
+        .stats {
+          margin-inline-start: auto;
+        }
+        .subtitle {
+          white-space: normal;
+        }
+        .flow-list {
+          grid-template-columns: 1fr;
+        }
+        .diagram-pane,
+        #architecture-svg {
+          min-height: 500px;
+        }
+        .hint {
+          display: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div class="title-wrap">
+          <h1>Flow map</h1>
+          <div class="subtitle" id="selection-detail"></div>
+        </div>
+        <div class="toolbar" aria-label="Diagram controls">
+          <button
+            class="tool-button"
+            id="zoom-out"
+            type="button"
+            aria-label="Zoom out"
+          >
+            −
+          </button>
+          <button class="tool-button" id="reset-view" type="button">Fit</button>
+          <button
+            class="tool-button"
+            id="zoom-in"
+            type="button"
+            aria-label="Zoom in"
+          >
+            +
+          </button>
+          <button
+            class="tool-button"
+            id="theme-toggle"
+            type="button"
+            aria-label="Toggle color theme"
+          >
+            Theme
+          </button>
+          <span class="stats" id="stats"></span>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <section
+          class="diagram-pane"
+          id="diagram-pane"
+          aria-label="Interactive repository architecture diagram"
+        >
+          <svg
+            id="architecture-svg"
+            viewBox="0 0 1480 980"
+            role="img"
+            aria-labelledby="diagram-title diagram-description"
+          >
+            <title id="diagram-title">Flow map</title>
+            <desc id="diagram-description"></desc>
+            <defs>
+              <marker
+                id="arrow"
+                viewBox="0 0 10 10"
+                refX="8.5"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"></path>
+              </marker>
+              <marker
+                id="arrow-active"
+                viewBox="0 0 10 10"
+                refX="8.5"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--brand)"></path>
+              </marker>
+            </defs>
+            <g id="viewport">
+              <g id="lanes"></g>
+              <g id="edges"></g>
+              <g id="nodes"></g>
+            </g>
+          </svg>
+          <div
+            class="tooltip"
+            id="tooltip"
+            role="tooltip"
+            aria-hidden="true"
+          ></div>
+          <div class="hint">
+            Drag to pan · scroll to zoom · select a node or flow
+          </div>
+        </section>
+
+        <aside class="panel" aria-labelledby="flows-heading">
+          <div class="panel-header">
+            <h2 id="flows-heading">Flow QA dashboard</h2>
+            <p>
+              Find a journey, inspect its path, and track manual or automated
+              QA.
+            </p>
+            <div class="flow-tools">
+              <input
+                class="flow-search"
+                id="flow-search"
+                type="search"
+                placeholder="Search flows, operations, or files…"
+                aria-label="Search flows"
+              />
+              <div class="flow-filters" aria-label="Flow category">
+                <button
+                  class="filter-button"
+                  data-flow-filter="user"
+                  type="button"
+                  aria-pressed="true"
+                >
+                  User flows
+                </button>
+                <button
+                  class="filter-button"
+                  data-flow-filter="system"
+                  type="button"
+                  aria-pressed="false"
+                >
+                  System flows
+                </button>
+                <button
+                  class="filter-button"
+                  data-flow-filter="all"
+                  type="button"
+                  aria-pressed="false"
+                >
+                  All
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="flow-list" id="flow-list"></div>
+          <section
+            class="qa-detail"
+            id="qa-detail"
+            aria-live="polite"
+          ></section>
+          <div
+            class="legend"
+            id="legend"
+            aria-label="Architecture layers"
+          ></div>
+        </aside>
+      </div>
+    </main>
+
+    <script>
+
+      // ---------------------------------------------------------------
+      // Model. scripts/render.py replaces the placeholder below with the
+      // flow-map JSON. Everything on this page is derived from it.
+      // ---------------------------------------------------------------
+      const MODEL = /*__FLOW_MAP_DATA__*/ null
+
+      const SLUG = (MODEL.repository || 'flow-map')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+
+      // Storage is blocked in sandboxed and data: URL contexts (preview
+      // panes). QA ticks are a nice-to-have; the map must still render.
+      const store = {
+        get(key) {
+          try {
+            return localStorage.getItem(key)
+          } catch {
+            return null
+          }
+        },
+        set(key, value) {
+          try {
+            localStorage.setItem(key, value)
+          } catch {}
+        },
+        remove(key) {
+          try {
+            localStorage.removeItem(key)
+          } catch {}
+        },
+      }
+
+      const layout = MODEL.layout ?? {}
+      const canvasWidth = layout.width ?? 1480
+      const canvasHeight = layout.height ?? 980
+      const laneRows = (layout.lanes ?? []).map(lane => [lane.y, lane.label])
+
+      const nodeData = MODEL.nodes.map(node => ({
+        id: node.id,
+        label: node.label,
+        layer: node.layer,
+        x: node.position?.x ?? 0,
+        y: node.position?.y ?? 0,
+        description: node.description ?? '',
+        path: (node.paths ?? []).join(' · ') || (node.technology ?? []).join(' · '),
+      }))
+
+      const edgeData = MODEL.edges.map(edge => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        relation: edge.relation,
+      }))
+
+      const categoryOrder = { user: 0, system: 1 }
+      const flows = [...MODEL.flows].sort(
+        (a, b) =>
+          (categoryOrder[a.category] ?? 2) - (categoryOrder[b.category] ?? 2)
+      )
+
+      // Layer colours are assigned per layer, in first-appearance order, so
+      // any vocabulary works without editing CSS.
+      const layerPalette = {
+        light: ['#8b5cf6','#2563eb','#5059ff','#0f766e','#9333ea','#ca8a04','#475569','#0284c7','#ea580c','#7c3aed','#be123c','#4d7c0f','#334155','#64748b'],
+        dark: ['#c4b5fd','#93c5fd','#8b92ff','#5eead4','#d8b4fe','#fde047','#cbd5e1','#7dd3fc','#fdba74','#ddd6fe','#fda4af','#bef264','#e2e8f0','#94a3b8'],
+      }
+      const layerIndex = new Map()
+      nodeData.forEach(node => {
+        if (!layerIndex.has(node.layer)) layerIndex.set(node.layer, layerIndex.size)
+      })
+      const layerStyle = document.createElement('style')
+      layerStyle.textContent = [
+        ':root{' + [...layerIndex.values()].map(i => `--layer-${i}:${layerPalette.light[i % layerPalette.light.length]};`).join('') + '}',
+        ':root.dark{' + [...layerIndex.values()].map(i => `--layer-${i}:${layerPalette.dark[i % layerPalette.dark.length]};`).join('') + '}',
+      ].join('\n')
+      document.head.append(layerStyle)
+
+      const pageTitle = `${MODEL.repository} flow map`
+      document.title = pageTitle
+      document.querySelector('h1').textContent = `${MODEL.repository} architecture`
+      document.getElementById('diagram-title').textContent = pageTitle
+      document.getElementById('diagram-description').textContent =
+        MODEL.description ?? pageTitle
+      const defaultSubtitle = MODEL.description ?? pageTitle
+
+      const nodeMap = new Map(nodeData.map(node => [node.id, node]))
+      const edgeMap = new Map(edgeData.map(edge => [edge.id, edge]))
+      const nodeWidth = 184
+      const nodeHeight = 58
+      const svg = document.getElementById('architecture-svg')
+      const viewport = document.getElementById('viewport')
+      const nodesGroup = document.getElementById('nodes')
+      const edgesGroup = document.getElementById('edges')
+      const lanesGroup = document.getElementById('lanes')
+      const flowList = document.getElementById('flow-list')
+      const tooltip = document.getElementById('tooltip')
+      const diagramPane = document.getElementById('diagram-pane')
+      const detail = document.getElementById('selection-detail')
+      const namespace = 'http://www.w3.org/2000/svg'
+      let selectedFlow = null
+      let selectedNode = null
+      let scale = 1
+      let offsetX = 0
+      let offsetY = 0
+      let dragStart = null
+      let activeFlowFilter = 'user'
+      let flowSearchQuery = ''
+
+      const layers = [...new Set(nodeData.map(node => node.layer))]
+
+      function makeSvg(tag, attributes = {}) {
+        const element = document.createElementNS(namespace, tag)
+        for (const [name, value] of Object.entries(attributes))
+          element.setAttribute(name, value)
+        return element
+      }
+
+      function colorFor(layer) {
+        return `var(--layer-${layerIndex.get(layer) ?? 0})`
+      }
+
+      function edgePath(source, target) {
+        const sx = source.x + nodeWidth / 2
+        const sy = source.y + nodeHeight / 2
+        const tx = target.x + nodeWidth / 2
+        const ty = target.y + nodeHeight / 2
+        const dx = tx - sx
+        const dy = ty - sy
+
+        if (Math.abs(dx) >= Math.abs(dy)) {
+          const startX = dx >= 0 ? source.x + nodeWidth : source.x
+          const endX = dx >= 0 ? target.x : target.x + nodeWidth
+          const bend = Math.max(42, Math.abs(endX - startX) * 0.45)
+          const c1 = startX + (dx >= 0 ? bend : -bend)
+          const c2 = endX - (dx >= 0 ? bend : -bend)
+          return `M ${startX} ${sy} C ${c1} ${sy}, ${c2} ${ty}, ${endX} ${ty}`
+        }
+
+        const startY = dy >= 0 ? source.y + nodeHeight : source.y
+        const endY = dy >= 0 ? target.y : target.y + nodeHeight
+        const bend = Math.max(34, Math.abs(endY - startY) * 0.45)
+        const c1 = startY + (dy >= 0 ? bend : -bend)
+        const c2 = endY - (dy >= 0 ? bend : -bend)
+        return `M ${sx} ${startY} C ${sx} ${c1}, ${tx} ${c2}, ${tx} ${endY}`
+      }
+
+      function renderLanes() {
+        laneRows.forEach(([y, label]) => {
+          const text = makeSvg('text', { x: 28, y, class: 'lane-label' })
+          text.textContent = label
+          lanesGroup.append(text)
+          lanesGroup.append(
+            makeSvg('line', {
+              x1: 188,
+              y1: y - 4,
+              x2: canvasWidth - 32,
+              y2: y - 4,
+              class: 'lane-rule',
+            })
+          )
+        })
+      }
+
+      function renderEdges() {
+        edgeData.forEach(edge => {
+          const source = nodeMap.get(edge.source)
+          const target = nodeMap.get(edge.target)
+          const path = makeSvg('path', {
+            id: `edge-${edge.id}`,
+            d: edgePath(source, target),
+            class: 'edge',
+            'marker-end': 'url(#arrow)',
+            'data-edge-id': edge.id,
+          })
+          const title = makeSvg('title')
+          title.textContent = `${source.label} → ${target.label}: ${edge.relation}`
+          path.append(title)
+          edgesGroup.append(path)
+        })
+      }
+
+      function showTooltip(node, event) {
+        tooltip.innerHTML = `<div class="tooltip-title">${node.label}</div><div class="tooltip-path">${node.path}</div><div class="tooltip-description">${node.description}</div>`
+        tooltip.classList.add('visible')
+        tooltip.setAttribute('aria-hidden', 'false')
+        const paneRect = diagramPane.getBoundingClientRect()
+        const clientX = event?.clientX ?? paneRect.left + paneRect.width / 2
+        const clientY = event?.clientY ?? paneRect.top + 80
+        const left = Math.min(
+          Math.max(12, clientX - paneRect.left + 14),
+          paneRect.width - Math.min(300, paneRect.width - 24) - 12
+        )
+        const top = Math.min(
+          Math.max(12, clientY - paneRect.top + 14),
+          paneRect.height - tooltip.offsetHeight - 12
+        )
+        tooltip.style.left = `${left}px`
+        tooltip.style.top = `${top}px`
+      }
+
+      function hideTooltip() {
+        tooltip.classList.remove('visible')
+        tooltip.setAttribute('aria-hidden', 'true')
+      }
+
+      function renderNodes() {
+        nodeData.forEach(node => {
+          const group = makeSvg('g', {
+            id: `node-${node.id}`,
+            class: 'node',
+            transform: `translate(${node.x} ${node.y})`,
+            role: 'button',
+            tabindex: '0',
+            'aria-label': `${node.label}. ${node.description}`,
+            'data-node-id': node.id,
+            style: `--node-color:${colorFor(node.layer)}`,
+          })
+          group.append(
+            makeSvg('rect', { width: nodeWidth, height: nodeHeight })
+          )
+          group.append(
+            makeSvg('line', {
+              x1: 1.5,
+              y1: 9,
+              x2: 1.5,
+              y2: nodeHeight - 9,
+              class: 'accent',
+            })
+          )
+          const label = makeSvg('text', { x: 12, y: 24, class: 'node-label' })
+          label.textContent = node.label
+          const layer = makeSvg('text', { x: 12, y: 43, class: 'node-layer' })
+          layer.textContent = node.layer.replace('-', ' ')
+          group.append(label, layer)
+          group.addEventListener('mouseenter', event =>
+            showTooltip(node, event)
+          )
+          group.addEventListener('mousemove', event => showTooltip(node, event))
+          group.addEventListener('mouseleave', hideTooltip)
+          group.addEventListener('focus', event => showTooltip(node, event))
+          group.addEventListener('blur', hideTooltip)
+          group.addEventListener('click', event => {
+            event.stopPropagation()
+            selectedFlow = null
+            selectedNode = selectedNode === node.id ? null : node.id
+            updateSelection()
+          })
+          group.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              selectedFlow = null
+              selectedNode = selectedNode === node.id ? null : node.id
+              updateSelection()
+            }
+          })
+          nodesGroup.append(group)
+        })
+      }
+
+      function flowMatches(flow) {
+        if (activeFlowFilter !== 'all' && flow.category !== activeFlowFilter)
+          return false
+        if (flowSearchQuery === '') return true
+        const haystack = [
+          flow.label,
+          flow.summary,
+          ...(flow.operations ?? []),
+          ...(flow.sourcePaths ?? []),
+          ...(flow.qa?.automated ?? []).map(check => check.command),
+          ...flow.steps,
+          ...flow.steps.map(step => nodeMap.get(step)?.path ?? ''),
+        ]
+          .join(' ')
+          .toLocaleLowerCase()
+        return haystack.includes(flowSearchQuery)
+      }
+
+      function renderFlows() {
+        flowList.replaceChildren()
+        const matches = flows.filter(flowMatches)
+        if (matches.length === 0) {
+          const empty = document.createElement('div')
+          empty.className = 'flow-empty'
+          empty.textContent = 'No flows match this search.'
+          flowList.append(empty)
+          return
+        }
+
+        let lastCategory = null
+        matches.forEach((flow, index) => {
+          if (activeFlowFilter === 'all' && flow.category !== lastCategory) {
+            const heading = document.createElement('div')
+            heading.className = 'flow-section-label'
+            heading.textContent =
+              flow.category === 'user' ? 'User flows' : 'System flows'
+            flowList.append(heading)
+            lastCategory = flow.category
+          }
+          const button = document.createElement('button')
+          button.type = 'button'
+          button.className = 'flow-button'
+          button.dataset.flowId = flow.id
+          button.setAttribute('aria-pressed', 'false')
+          button.innerHTML = `<span class="flow-number">${String(index + 1).padStart(2, '0')}</span><span><span class="flow-label">${flow.label}</span><span class="flow-summary">${flow.summary}</span></span>`
+          button.addEventListener('click', () => {
+            selectedNode = null
+            selectedFlow = selectedFlow === flow.id ? null : flow.id
+            updateSelection()
+          })
+          flowList.append(button)
+        })
+      }
+
+      function qaStorageKey(flowId, checkId) {
+        return `${SLUG}-flow-qa:${flowId}:${checkId}`
+      }
+
+      function renderQa(flow) {
+        const qaDetail = document.getElementById('qa-detail')
+        qaDetail.replaceChildren()
+        qaDetail.classList.toggle('visible', Boolean(flow))
+        if (!flow) return
+
+        const headingRow = document.createElement('div')
+        headingRow.className = 'qa-heading-row'
+        const heading = document.createElement('h3')
+        heading.textContent = flow.label
+        const status = document.createElement('select')
+        status.className = 'qa-status'
+        status.setAttribute('aria-label', `${flow.label} QA status`)
+        ;[
+          ['not-run', 'Not run'],
+          ['passed', 'Passed'],
+          ['failed', 'Failed'],
+          ['blocked', 'Blocked'],
+        ].forEach(([value, label]) => {
+          const option = document.createElement('option')
+          option.value = value
+          option.textContent = label
+          status.append(option)
+        })
+        const statusKey = `${SLUG}-flow-status:${flow.id}`
+        status.value = store.get(statusKey) ?? 'not-run'
+        status.addEventListener('change', () =>
+          store.set(statusKey, status.value)
+        )
+        headingRow.append(heading, status)
+        qaDetail.append(headingRow)
+
+        const summary = document.createElement('p')
+        summary.className = 'qa-meta'
+        summary.textContent = flow.summary
+        qaDetail.append(summary)
+
+        const pathBlock = document.createElement('div')
+        pathBlock.className = 'qa-block'
+        pathBlock.innerHTML = '<h4>Path</h4>'
+        const stepList = document.createElement('ol')
+        stepList.className = 'step-list'
+        flow.steps.forEach(step => {
+          const item = document.createElement('li')
+          item.textContent = nodeMap.get(step)?.label ?? step
+          stepList.append(item)
+        })
+        pathBlock.append(stepList)
+        qaDetail.append(pathBlock)
+
+        const sources = [
+          ...new Set(
+            flow.steps.map(step => nodeMap.get(step)?.path).filter(Boolean)
+          ),
+        ]
+        if (sources.length > 0) {
+          const sourceBlock = document.createElement('div')
+          sourceBlock.className = 'qa-block'
+          sourceBlock.innerHTML = '<h4>Source areas</h4>'
+          const sourceCopy = document.createElement('p')
+          sourceCopy.className = 'qa-meta'
+          sourceCopy.textContent = sources.join(' · ')
+          sourceBlock.append(sourceCopy)
+          qaDetail.append(sourceBlock)
+        }
+
+        if ((flow.operations ?? []).length > 0) {
+          const operationBlock = document.createElement('div')
+          operationBlock.className = 'qa-block'
+          operationBlock.innerHTML = '<h4>Operations</h4>'
+          const operations = document.createElement('p')
+          operations.className = 'qa-meta'
+          operations.textContent = flow.operations.join(' · ')
+          operationBlock.append(operations)
+          qaDetail.append(operationBlock)
+        }
+
+        if (flow.successOutcome || flow.failureBehavior) {
+          const outcomeBlock = document.createElement('div')
+          outcomeBlock.className = 'qa-block'
+          outcomeBlock.innerHTML = '<h4>Expected behavior</h4>'
+          const outcome = document.createElement('p')
+          outcome.className = 'qa-meta'
+          outcome.textContent = `Success: ${flow.successOutcome ?? 'See flow summary.'} Failure: ${flow.failureBehavior ?? 'See component error handling.'}`
+          outcomeBlock.append(outcome)
+          qaDetail.append(outcomeBlock)
+        }
+
+        const manual = flow.qa?.manual ?? []
+        if (manual.length > 0) {
+          const manualBlock = document.createElement('div')
+          manualBlock.className = 'qa-block'
+          manualBlock.innerHTML = '<h4>Manual QA</h4>'
+          manual.forEach(check => {
+            const row = document.createElement('label')
+            row.className = 'qa-check'
+            const checkbox = document.createElement('input')
+            checkbox.type = 'checkbox'
+            const key = qaStorageKey(flow.id, check.id)
+            checkbox.checked = store.get(key) === 'done'
+            checkbox.addEventListener('change', () => {
+              if (checkbox.checked) store.set(key, 'done')
+              else store.remove(key)
+            })
+            const copy = document.createElement('span')
+            copy.className = 'qa-check-label'
+            copy.textContent = check.label
+            const expected = document.createElement('span')
+            expected.className = 'qa-expected'
+            expected.textContent = `Expected: ${check.expected}`
+            copy.append(expected)
+            row.append(checkbox, copy)
+            manualBlock.append(row)
+          })
+          qaDetail.append(manualBlock)
+        }
+
+        const automated = flow.qa?.automated ?? []
+        if (automated.length > 0) {
+          const autoBlock = document.createElement('div')
+          autoBlock.className = 'qa-block'
+          autoBlock.innerHTML = '<h4>Automated QA</h4>'
+          automated.forEach(check => {
+            const row = document.createElement('div')
+            row.className = 'auto-check'
+            const label = document.createElement('div')
+            label.className = 'auto-check-label'
+            label.textContent = check.label
+            const commandRow = document.createElement('div')
+            commandRow.className = 'command-row'
+            const command = document.createElement('code')
+            command.textContent = check.command
+            const copy = document.createElement('button')
+            copy.type = 'button'
+            copy.className = 'copy-command'
+            copy.textContent = 'Copy'
+            copy.addEventListener('click', async () => {
+              try {
+                await navigator.clipboard.writeText(check.command)
+              } catch {
+                const input = document.createElement('textarea')
+                input.value = check.command
+                document.body.append(input)
+                input.select()
+                document.execCommand('copy')
+                input.remove()
+              }
+              copy.textContent = 'Copied'
+              window.setTimeout(() => (copy.textContent = 'Copy'), 1200)
+            })
+            commandRow.append(command, copy)
+            row.append(label, commandRow)
+            autoBlock.append(row)
+          })
+          qaDetail.append(autoBlock)
+        }
+      }
+
+      function renderLegend() {
+        const legend = document.getElementById('legend')
+        layers.forEach(layer => {
+          const item = document.createElement('span')
+          item.className = 'legend-item'
+          item.innerHTML = `<span class="legend-dot" style="--legend-color:${colorFor(layer)}"></span>${layer.replace('-', ' ')}`
+          legend.append(item)
+        })
+      }
+
+      function updateSelection() {
+        const flow = flows.find(candidate => candidate.id === selectedFlow)
+        const activeNodes = new Set(flow?.steps ?? [])
+        const activeEdges = new Set(flow?.edgeIds ?? [])
+        const relatedEdges = new Set()
+        const relatedNodes = new Set()
+
+        if (selectedNode) {
+          relatedNodes.add(selectedNode)
+          edgeData.forEach(edge => {
+            if (edge.source === selectedNode || edge.target === selectedNode) {
+              relatedEdges.add(edge.id)
+              relatedNodes.add(edge.source)
+              relatedNodes.add(edge.target)
+            }
+          })
+        }
+
+        document.querySelectorAll('.node').forEach(element => {
+          const id = element.dataset.nodeId
+          const hasSelection = Boolean(flow || selectedNode)
+          element.classList.toggle(
+            'is-active',
+            activeNodes.has(id) || id === selectedNode
+          )
+          element.classList.toggle(
+            'is-related',
+            !flow && selectedNode && relatedNodes.has(id) && id !== selectedNode
+          )
+          element.classList.toggle(
+            'is-muted',
+            hasSelection && !activeNodes.has(id) && !relatedNodes.has(id)
+          )
+        })
+
+        document.querySelectorAll('.edge').forEach(element => {
+          const id = element.dataset.edgeId
+          const hasSelection = Boolean(flow || selectedNode)
+          const isActive = activeEdges.has(id)
+          const isRelated = !flow && relatedEdges.has(id)
+          element.classList.toggle('is-active', isActive)
+          element.classList.toggle('is-related', isRelated)
+          element.classList.toggle(
+            'is-muted',
+            hasSelection && !isActive && !isRelated
+          )
+          element.setAttribute(
+            'marker-end',
+            isActive ? 'url(#arrow-active)' : 'url(#arrow)'
+          )
+        })
+
+        document.querySelectorAll('.flow-button').forEach(button => {
+          button.setAttribute(
+            'aria-pressed',
+            String(button.dataset.flowId === selectedFlow)
+          )
+        })
+
+        renderQa(flow)
+
+        if (flow)
+          detail.textContent = `${flow.label} · ${flow.steps.length} components · ${flow.summary}`
+        else if (selectedNode) {
+          const node = nodeMap.get(selectedNode)
+          const count = edgeData.filter(
+            edge => edge.source === selectedNode || edge.target === selectedNode
+          ).length
+          detail.textContent = `${node.label} · ${count} direct connections · ${node.description}`
+        } else detail.textContent = defaultSubtitle
+      }
+
+      function applyTransform() {
+        viewport.setAttribute(
+          'transform',
+          `translate(${offsetX} ${offsetY}) scale(${scale})`
+        )
+      }
+
+      function zoomBy(factor, originX = canvasWidth / 2, originY = canvasHeight / 2) {
+        const next = Math.min(2.4, Math.max(0.5, scale * factor))
+        offsetX = originX - (originX - offsetX) * (next / scale)
+        offsetY = originY - (originY - offsetY) * (next / scale)
+        scale = next
+        applyTransform()
+      }
+
+      svg.addEventListener(
+        'wheel',
+        event => {
+          event.preventDefault()
+          const point = svg.createSVGPoint()
+          point.x = event.clientX
+          point.y = event.clientY
+          const local = point.matrixTransform(svg.getScreenCTM().inverse())
+          zoomBy(event.deltaY < 0 ? 1.1 : 0.9, local.x, local.y)
+        },
+        { passive: false }
+      )
+
+      svg.addEventListener('pointerdown', event => {
+        if (event.target.closest?.('.node')) return
+        dragStart = { x: event.clientX, y: event.clientY, offsetX, offsetY }
+        svg.setPointerCapture(event.pointerId)
+        svg.classList.add('dragging')
+      })
+      svg.addEventListener('pointermove', event => {
+        if (!dragStart) return
+        const rect = svg.getBoundingClientRect()
+        offsetX =
+          dragStart.offsetX +
+          (event.clientX - dragStart.x) * (canvasWidth / rect.width)
+        offsetY =
+          dragStart.offsetY +
+          (event.clientY - dragStart.y) * (canvasHeight / rect.height)
+        applyTransform()
+      })
+      svg.addEventListener('pointerup', () => {
+        dragStart = null
+        svg.classList.remove('dragging')
+      })
+      svg.addEventListener('pointercancel', () => {
+        dragStart = null
+        svg.classList.remove('dragging')
+      })
+      svg.addEventListener('click', event => {
+        if (event.target.closest?.('.node')) return
+        selectedFlow = null
+        selectedNode = null
+        updateSelection()
+      })
+
+      document
+        .getElementById('zoom-in')
+        .addEventListener('click', () => zoomBy(1.18))
+      document
+        .getElementById('zoom-out')
+        .addEventListener('click', () => zoomBy(0.84))
+      document.getElementById('reset-view').addEventListener('click', () => {
+        scale = 1
+        offsetX = 0
+        offsetY = 0
+        applyTransform()
+      })
+      document.getElementById('theme-toggle').addEventListener('click', () => {
+        document.documentElement.classList.toggle('dark')
+        store.set(
+          `${SLUG}-flow-map-theme`,
+          document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+        )
+      })
+
+      document
+        .getElementById('flow-search')
+        .addEventListener('input', event => {
+          flowSearchQuery = event.currentTarget.value.trim().toLocaleLowerCase()
+          renderFlows()
+          updateSelection()
+        })
+      document.querySelectorAll('[data-flow-filter]').forEach(button => {
+        button.addEventListener('click', () => {
+          activeFlowFilter = button.dataset.flowFilter
+          document
+            .querySelectorAll('[data-flow-filter]')
+            .forEach(candidate =>
+              candidate.setAttribute(
+                'aria-pressed',
+                String(candidate === button)
+              )
+            )
+          if (
+            selectedFlow &&
+            activeFlowFilter !== 'all' &&
+            flows.find(flow => flow.id === selectedFlow)?.category !==
+              activeFlowFilter
+          ) {
+            selectedFlow = null
+          }
+          renderFlows()
+          updateSelection()
+        })
+      })
+
+      const storedTheme = store.get(`${SLUG}-flow-map-theme`)
+      const darkPreferred = window.matchMedia(
+        '(prefers-color-scheme: dark)'
+      ).matches
+      document.documentElement.classList.toggle(
+        'dark',
+        storedTheme ? storedTheme === 'dark' : darkPreferred
+      )
+      document.getElementById('stats').textContent =
+        `${nodeData.length} nodes · ${edgeData.length} edges · ${flows.length} flows`
+      svg.setAttribute('viewBox', `0 0 ${canvasWidth} ${canvasHeight}`)
+      renderLanes()
+      renderEdges()
+      renderNodes()
+      renderFlows()
+      renderLegend()
+      updateSelection()
+    </script>
+  </body>
+</html>

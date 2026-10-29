@@ -1,0 +1,12 @@
+{
+  "title": "Where Atlas sits between GitHub Issues and Linear",
+  "kicker": "Atlas · go-to-market · August 2026",
+  "lede": "Thirteen findings and decisions, wired by what each one depends on. Read it left to right: evidence about the market, then who it points at, then what that means for the product, the price, and the order the work has to happen in.",
+  "out": "flow.html",
+  "nodeWord": "topics",
+  "lanes": ["EVIDENCE", "SEGMENT & MOAT", "IMPLICATIONS", "PACKAGING", "EXPANSION", "EXECUTE"],
+  "spine": ["linear-free-tier-wall", "paywall-blocker", "pricing", "execution"],
+  "spineLabel": "Critical path",
+  "tally": [{"value": "2", "label": "open blockers"}, {"value": "5", "label": "execution steps"}],
+  "footer": "Generated from the frontmatter of the notes beside it. Nothing here is approved."
+}
