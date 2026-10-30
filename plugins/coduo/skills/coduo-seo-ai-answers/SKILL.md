@@ -64,8 +64,10 @@ wall, stop that assistant, record where it stopped, and go on with the others. N
 solve a CAPTCHA, never sign in, and never wait for the owner to.
 
 Per run, store `body` and `sources` as separate fields, plus `retrieved_urls` for
-ChatGPT. Classify the product's verdict by hand (a regex counts source chips as
-mentions). Per prompt per assistant, record:
+ChatGPT. Count **mentioned** by a case-insensitive match of the product name on
+`body` only (on the whole page a regex counts source chips as mentions), and
+**cited** by the product's domain in `sources`. Judge **recommended** by hand, and
+only on runs where the product is mentioned. Per prompt per assistant, record:
 
 - **Mentioned, recommended, cited**: three separate verdicts, as N/runs each. The
   product can be cited without being named.

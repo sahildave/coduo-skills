@@ -1,7 +1,7 @@
 {
   "name": "coduo",
   "description": "Coduo's skills: the epic, tickets and AFK-run workflow, product memory and prototypes, landing copy and pricing, SEO research, and repo setup.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": { "name": "Sahil Dave" },
   "repository": "https://github.com/sahildave/coduo-skills",
   "license": "MIT"
