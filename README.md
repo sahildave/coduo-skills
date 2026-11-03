@@ -1,15 +1,32 @@
 # coduo-skills
 
-The skills Coduo uses to build products with coding agents: turn an idea into a GitHub epic, cut the
-epic into tickets, run the tickets unattended with [coduo-afk](https://github.com/sahildave/coduo-afk),
-and land the result. Also product memory, prototypes, landing copy, pricing and SEO research.
+The skills Coduo uses to build products with coding agents: 
+
+```
+sculpt an idea for a common understanding
+        ↓
+create standardized epics and tickets
+        ↓
+convert the plan into flow diagrams
+        ↓
+create a working prototype in your app's shell
+        ↓
+run your tickets unattended overnight
+        ↓
+park or resume any long running queue of tasks
+        ↓
+cleanup branches, worktrees and open tickets after a PR is merged
+```
+
+
+Also, product memory, prototypes, landing copy, pricing and SEO research.
 
 This repo is a Claude Code plugin marketplace with two plugins:
 
 | Plugin | What it is |
 |---|---|
 | `coduo` | The 26 skills below, hosted here |
-| `mattpocock-skills` | [Matt Pocock's engineering skills](https://github.com/mattpocock/skills), installed from upstream. `coduo-epic`, `coduo-tickets` and `coduo-implement` wrap his `to-spec`, `to-tickets` and `implement`, and the coduo-afk closeout review runs his `code-review` |
+| `mattpocock-skills` | Uses as base [Matt Pocock's engineering skills](https://github.com/mattpocock/skills), installed from upstream. `coduo-epic`, `coduo-tickets` and `coduo-implement` wrap his `to-spec`, `to-tickets` and `implement`, and the coduo-afk closeout review runs his `code-review`. Revondered to allow agents allow model invocation |
 
 ## Install
 
@@ -88,3 +105,24 @@ bug or a proposal. A pull request to a skill file is welcome, and the maintainer
 ## License
 
 MIT. `mattpocock-skills` is Matt Pocock's, under its own MIT license.
+
+---
+
+<p align="center">
+  <a href="https://www.coduo.co">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="/assets/apps/coduo-dark.svg">
+      <img src="/assets/apps/coduo-light.svg" height="56" alt="coduo">
+    </picture>
+  </a>
+  <br>
+  creating software<br>with intention
+</p>
+
+<p align="center">
+  <a href="https://www.coduo.co"><img src="/assets/apps/skilltopia.png" width="48" alt="skilltopia" title="skilltopia"></a>&nbsp;&nbsp;
+  <a href="https://gitsu.app"><img src="/assets/apps/gitsu.png" width="48" alt="gitsu" title="gitsu"></a>&nbsp;&nbsp;
+  <a href="https://gitback.us"><img src="/assets/apps/gitback.png" width="48" alt="gitback" title="gitback"></a>&nbsp;&nbsp;
+  <a href="https://shareling.app"><img src="/assets/apps/shareling.png" width="48" alt="shareling" title="shareling"></a>&nbsp;&nbsp;
+  <a href="https://www.coduo.co"><img src="/assets/apps/macappspace.png" width="48" alt="macapp.space" title="macapp.space"></a>
+</p>
