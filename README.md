@@ -1,3 +1,5 @@
+<p align="center"><img src="banner.png" alt="coduo skills"></p>
+
 # coduo-skills
 
 The skills Coduo uses to build products with coding agents: 
