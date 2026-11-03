@@ -1,4 +1,4 @@
-<p align="center"><img src="banner.png" alt="coduo skills"></p>
+<p align="center"><img src="assets/banner.png" alt="coduo skills"></p>
 
 # coduo-skills
 
@@ -113,8 +113,8 @@ MIT. `mattpocock-skills` is Matt Pocock's, under its own MIT license.
 <p align="center">
   <a href="https://www.coduo.co">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="/assets/apps/coduo-dark.svg">
-      <img src="/assets/apps/coduo-light.svg" height="56" alt="coduo">
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/sahildave/coduo-skills/main/assets/apps/coduo-dark.svg">
+      <img src="https://raw.githubusercontent.com/sahildave/coduo-skills/main/assets/apps/coduo-light.svg" height="56" alt="coduo">
     </picture>
   </a>
   <br>
@@ -122,9 +122,9 @@ MIT. `mattpocock-skills` is Matt Pocock's, under its own MIT license.
 </p>
 
 <p align="center">
-  <a href="https://www.coduo.co"><img src="/assets/apps/skilltopia.png" width="48" alt="skilltopia" title="skilltopia"></a>&nbsp;&nbsp;
-  <a href="https://gitsu.app"><img src="/assets/apps/gitsu.png" width="48" alt="gitsu" title="gitsu"></a>&nbsp;&nbsp;
-  <a href="https://gitback.us"><img src="/assets/apps/gitback.png" width="48" alt="gitback" title="gitback"></a>&nbsp;&nbsp;
-  <a href="https://shareling.app"><img src="/assets/apps/shareling.png" width="48" alt="shareling" title="shareling"></a>&nbsp;&nbsp;
-  <a href="https://www.coduo.co"><img src="/assets/apps/macappspace.png" width="48" alt="macapp.space" title="macapp.space"></a>
+  <a href="https://www.coduo.co"><img src="https://raw.githubusercontent.com/sahildave/coduo-skills/main/assets/apps/skilltopia.png" width="48" alt="skilltopia" title="skilltopia"></a>&nbsp;&nbsp;
+  <a href="https://gitsu.app"><img src="https://raw.githubusercontent.com/sahildave/coduo-skills/main/assets/apps/gitsu.png" width="48" alt="gitsu" title="gitsu"></a>&nbsp;&nbsp;
+  <a href="https://gitback.us"><img src="https://raw.githubusercontent.com/sahildave/coduo-skills/main/assets/apps/gitback.png" width="48" alt="gitback" title="gitback"></a>&nbsp;&nbsp;
+  <a href="https://shareling.app"><img src="https://raw.githubusercontent.com/sahildave/coduo-skills/main/assets/apps/shareling.png" width="48" alt="shareling" title="shareling"></a>&nbsp;&nbsp;
+  <a href="https://www.coduo.co"><img src="https://raw.githubusercontent.com/sahildave/coduo-skills/main/assets/apps/macappspace.png" width="48" alt="macapp.space" title="macapp.space"></a>
 </p>
