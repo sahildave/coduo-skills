@@ -104,6 +104,11 @@ out of the bar, after). Cards open the same note panel. State is derived like
 the User path tab; the tab appears only when a note carries `column`. Schema in
 [`references/note-schema.md`](references/note-schema.md).
 
+A map can carry both sets in one folder. Give the topics `kind` with tone `none`
+(so the Roadmap does not draw them) plus `step`, `area` and `column`; give the
+launch cards `depends_on`, `start` and `length`. One build then renders all six
+tabs, and the Open questions and Risks tabs collect from every note.
+
 Otherwise the page is four tabs — **Roadmap**, **Schedule**, **Open questions**,
 **Risks** — and each one only exists when the notes have filled it. Schedule
 sits directly after the map because "what blocks what" and "when" are read

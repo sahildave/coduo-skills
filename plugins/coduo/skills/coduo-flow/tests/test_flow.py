@@ -811,6 +811,34 @@ class TestSwimlanes(Flow):
         self.assertNotEqual(self.check().returncode, 0)
 
 
+class TestPathWithStandardTabs(Flow):
+    """One map can hold topics for User path and Swimlanes beside launch cards
+    for Roadmap, Schedule, Open questions and Risks: all six tabs, one folder."""
+
+    def test_all_six_tabs_render_and_topics_stay_off_the_roadmap(self):
+        self.config(
+            kinds={"topic": {"tone": "none", "label": "Topic"}},
+            path={"steps": [{"id": "s1", "name": "Step"}], "areas": [{"id": "app", "name": "App"}]},
+            swimlanes={"columns": [{"id": "built", "name": "Built"}]},
+            timeline={"units": 4, "unitLabel": "step"})
+        self.write("01-t.md", note("t-a", "Topic A", kind="topic",
+                                   extra="step: s1\narea: app\ncolumn: built\n"))
+        self.write("41-x.md", note("x", "Card X", unl=["y"], extra="start: 1\nlength: 2\n"
+                                   "questions:\n  - \"code: Does it ship?\"\n"
+                                   "risks:\n  - \"high, code: It slips.\"\n"))
+        self.write("42-y.md", note("y", "Card Y", dep=["x"], extra="start: 3\nlength: 1\n"))
+        self.assertEqual(self.check().returncode, 0, self.check().stdout)
+        self.assertEqual(self.build().returncode, 0)
+        h = self.html()
+        for tab in ("path", "roadmap", "schedule", "swimlanes", "questions", "risks"):
+            self.assertIn('data-tab="%s"' % tab, h, tab)
+        roadmap = h.split('id="tab-roadmap"')[1].split('id="tab-')[0]
+        self.assertIn("node-x", roadmap)
+        self.assertNotIn("node-t-a", roadmap)
+        self.assertIn('data-note="t-a"', h.split('id="tab-path"')[1])
+        self.assertIn('data-note="t-a"', h.split('id="tab-swimlanes"')[1])
+
+
 # ------------------------------------------------- hostile note text
 class TestHostileText(Flow):
     """A map gets shared, and its text comes from notes and tracker titles, so
