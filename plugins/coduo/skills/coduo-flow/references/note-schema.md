@@ -274,6 +274,21 @@ injected interface, a stubbed backend. It usually does, and finding it is worth
 more than the scheduling: it means the human sitting is short and the work
 waiting on it is already done.
 
+### `milestone` places a note on a release
+
+```yaml
+milestone: 0.4.0
+```
+
+One id from `flow.json`'s `milestones`, an ordered `{id: label}` object; milestones are cumulative, so choosing one shows it and every earlier one in that order. The page
+gets one Milestone filter under the tab bar, shared by every tab: map-style tabs
+dim the cards that are not in that range, and the questions and risks tabs hide rows
+(they inherit their note's milestone) and recount. A flow with no `milestones`
+block draws no chips. The same row holds an open-tickets pill, the distinct open tickets
+(`data-open` ids) among what the current tab shows under every active filter; with no
+`milestones` the pill sits alone in that row, and only if some note has epics. `check_flow.py` errors on a milestone outside the
+vocabulary and warns on a note with none.
+
 ### The note panel is three tabs
 
 **Details**, **Open questions** and **Risks**, using the same row component
@@ -405,6 +420,10 @@ Sits beside the notes. Every field is optional.
   another way into the same knowledge rather than a second picture to maintain.
 
   A bar running past the end of the timeline is an error, not a silent clip.
+  A done note with no `start` is drawn as a green bar in a collapsed "Shipped" group, in a leading "Done" column. With `milestones`, the other rows form one group per milestone; each row shows its `area` (or its roadmap lane) as a small label.
+
+- **`milestones`** is `{"0.3.0": "0.3.0 release candidate", "later": "Later"}`:
+  the ids a note's `milestone` may take, in chip order, and the chip labels.
 
 - **`questions`** and **`risks`** rename their tab, heading and standfirst.
   Each block only appears when at least one note carries that field, so a
