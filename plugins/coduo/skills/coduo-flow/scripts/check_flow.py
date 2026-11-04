@@ -17,7 +17,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import flowio
-from build_flow import DEFAULT_KINDS, RISK_TOKENS, TONES, parse_question, set_categories
+from build_flow import DEFAULT_KINDS, NOTE_ID, RISK_TOKENS, TONES, parse_question, set_categories
 
 STATUSES = ["open", "proposed", "validated", "decided"]
 EXECUTORS = ("unattended", "human", "mixed")
@@ -283,6 +283,8 @@ def main(flow_dir):
         if not re.search(r"^#\s", body.lstrip(), re.M):
             warn("%s: body has no `# ` heading" % name)
         nid = fm.get("id")
+        if nid and not NOTE_ID.fullmatch(str(nid)):
+            fail('%s: id "%s" must be letters, digits, - and _' % (name, nid))
         if nid in notes:
             fail('duplicate id "%s" in %s and %s' % (nid, name, notes[nid]["file"]))
         if nid:

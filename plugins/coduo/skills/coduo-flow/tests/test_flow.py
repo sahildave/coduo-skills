@@ -810,5 +810,56 @@ class TestSwimlanes(Flow):
         self.write("01-a.md", note("a", "A", extra="area: app\ncolumn: built\n"))
         self.assertNotEqual(self.check().returncode, 0)
 
+
+# ------------------------------------------------- hostile note text
+class TestHostileText(Flow):
+    """A map gets shared, and its text comes from notes and tracker titles, so
+    none of that text may become script."""
+
+    def test_a_title_cannot_close_the_search_script(self):
+        self.config()
+        self.write("01-a.md", note("a", "A").replace("Title for a", "</script><b>x"))
+        self.assertEqual(self.build().returncode, 0)
+        self.assertNotIn("</script><b>", self.html())
+
+    def test_bad_ids_are_refused_by_check_and_build(self):
+        self.config()
+        self.write("01-a.md", note('a"><b>', "A"))
+        self.assertIn("letters, digits", self.check().stderr)
+        self.assertIn("letters, digits", self.build().stderr)
+
+    def test_only_web_links_render(self):
+        for bad in ("javascript:alert(1)", "JaVaScRiPt:x", "\x01javascript:x", "data:text/html,x",
+                    '`"onclick=x y=`'):
+            self.assertNotIn("<a ", flowmd.inline("[go](%s)" % bad))
+        for good in ("https://a.b/c", "http://a.b", "mailto:a@b.c", "#note", "other/page.html"):
+            self.assertIn("<a ", flowmd.inline("[go](%s)" % good))
+
+    def test_a_note_cannot_forge_the_renderers_markers(self):
+        for marker in ("\x01", "\x000\x00"):
+            html, _ = flowmd.render("- %s<img src=x>\n" % marker)
+            self.assertIn("&lt;img", html)
+
+    def test_a_quote_in_a_title_cannot_leave_its_attribute(self):
+        self.config()
+        self.write("01-a.md", note("a", "A").replace("Title for a", 'x" onmouseover="y'))
+        self.assertEqual(self.build().returncode, 0)
+        self.assertNotIn('x" onmouseover=', self.html())
+
+    def test_a_template_token_in_a_note_stays_text(self):
+        self.config()
+        self.write("01-a.md", note("a", "A", body="# T\n\n{{SEARCH}}\n"))
+        self.assertEqual(self.build().returncode, 0)
+        self.assertIn("<p>{{SEARCH}}</p>", self.html())
+
+    def test_out_cannot_leave_the_folder(self):
+        self.minimal()
+        outside = self.dir + "-out.html"
+        for out in ("../" + os.path.basename(outside), outside):
+            self.config(out=out)
+            self.assertIn("outside the flow folder", self.build().stderr)
+            self.assertFalse(os.path.exists(outside))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

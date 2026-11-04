@@ -147,13 +147,18 @@ W_NODE, H_NODE, PITCH_X, PITCH_Y = 252, 58, 320, 104
 X0, BAND_TOP = 60, 118
 
 
+#: A note id goes unescaped into HTML ids, attributes and lavish-axi selectors,
+#: so it has to be a plain token.
+NOTE_ID = re.compile(r"[A-Za-z0-9_-]+")
+
+
 def die(msg):
     sys.stderr.write("build_flow: %s\n" % msg)
     sys.exit(1)
 
 
 def esc(s):
-    return html.escape(str(s), quote=False)
+    return html.escape(str(s))
 
 
 def _int(v):
@@ -213,6 +218,8 @@ def load(flow_dir):
         for req in ("id", "title", "node", "kind", "status", "summary"):
             if not fm.get(req):
                 die("%s is missing `%s`" % (name, req))
+        if not NOTE_ID.fullmatch(str(fm["id"])):
+            die('%s has id "%s"; use letters, digits, - and _' % (name, fm["id"]))
         if fm["kind"] not in kinds:
             die('%s has kind "%s"; flow.json defines %s'
                 % (name, fm["kind"], ", ".join(sorted(kinds))))
@@ -1290,7 +1297,8 @@ def main():
         for r in n["risks"]:
             index.append({"id": n["id"], "k": "r",
                           "t": "%s · %s" % (r["ref"], n["node"]), "s": r["text"], "x": ""})
-    search = json.dumps(index, ensure_ascii=False)
+    # This lands inside a <script>, where a `</script>` in a title would end it.
+    search = json.dumps(index, ensure_ascii=False).replace("<", "\\u003c")
 
     questions_html, open_q = render_questions(cfg, notes)
     risks_html, unmit = render_risks(cfg, notes)
@@ -1315,7 +1323,7 @@ def main():
     out = flowio.read_text(SHELL)
     if path_html:
         out = out.replace('aria-labelledby="tb-roadmap">', 'aria-labelledby="tb-roadmap" hidden>')
-    for key, val in {
+    slots = {
         "TITLE": esc(cfg.get("title", "Flow map")),
         "KICKER": esc(cfg.get("kicker", "")) + synced_stamp(cfg.get("_epicsGenerated")),
         "LEDE": esc(cfg.get("lede", "")),
@@ -1346,10 +1354,16 @@ def main():
             ("Epic state synced from GitHub on %s; re-run sync_epics.py to refresh."
              % cfg["_epicsGenerated"]) if cfg.get("_epicsGenerated") else "",
         ] if x)),
-    }.items():
-        out = out.replace("{{%s}}" % key, val)
+    }
+    # One pass, so a `{{SEARCH}}` typed in a note stays text: expanded, it would
+    # drop raw JSON into whatever attribute the note put it in.
+    out = re.sub(r"\{\{([A-Z]+)\}\}", lambda m: slots.get(m.group(1), m.group(0)), out)
 
-    dest = os.path.join(flow_dir, cfg.get("out", "flow.html"))
+    target = cfg.get("out", "flow.html")
+    dest = os.path.join(flow_dir, target)
+    root = os.path.realpath(flow_dir)
+    if os.path.commonpath([root, os.path.realpath(dest)]) != root:
+        die('flow.json: `out` "%s" is outside the flow folder' % target)
     flowio.write_text(dest, out)
     print("%s | %d notes (%d drawn) | %d edges | %d layers | %d open q | %d unmitigated | %d KB"
           % (os.path.relpath(dest), len(notes), len(drawn), len(edges),

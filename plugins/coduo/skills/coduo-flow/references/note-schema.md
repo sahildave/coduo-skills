@@ -9,7 +9,7 @@ One markdown file. Frontmatter carries the graph; the body carries the thinking.
 
 ```yaml
 ---
-id: kebab-case-id        # stable, referenced by depends_on/unlocks. Never renamed casually.
+id: kebab-case-id        # stable, referenced by depends_on/unlocks. Letters, digits, - and _ only. Never renamed casually.
 title: The full title    # shown in the panel header and the search results
 node: Short label        # <= 24 chars — the card's label. Longer is a hard error.
 caption: shorter still   # optional, the card's second line. Aim for <= 32 chars.
@@ -378,7 +378,8 @@ Sits beside the notes. Every field is optional.
   link to your tracker: `"issueUrl": "https://github.com/you/repo/issues/"`.
   Left unset, `#123` stays plain text — guessing a tracker would be worse than
   not linking. Note bodies are unaffected; write those as ordinary markdown
-  links.
+  links. A link with a scheme other than http, https or mailto renders as plain
+  text.
 
 - **`categories`** replaces the question and risk category vocabulary wholesale,
   e.g. `{"code": "Code", "product": "Design & product"}`. See the categories

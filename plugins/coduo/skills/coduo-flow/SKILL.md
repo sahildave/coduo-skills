@@ -40,7 +40,7 @@ Resolve the map's `flow.html` and hand it to lavish-axi, then wait:
 
 ```bash
 LAVISH_AXI_TELEMETRY=0 npx -y lavish-axi docs/flow/<name>/flow.html
-npx -y lavish-axi poll docs/flow/<name>/flow.html
+LAVISH_AXI_TELEMETRY=0 npx -y lavish-axi poll docs/flow/<name>/flow.html
 ```
 
 The reviewer annotates cards, question rows and text in the browser; each note
@@ -253,7 +253,8 @@ plan really breaks. Everything else needs none of it.
 Where the work is run off a tracker, give each note the epics that land on it —
 `epics: [68, 91]`, the issues `coduo-epic` wrote. A card accumulates epics over
 its life, and several cards may share one. Then
-run the sync, which is the only thing here that touches the network:
+run the sync, the only build step that touches the network (a page built with
+`webfonts` on also loads Google Fonts when opened):
 
 ```bash
 python3 <skill-dir>/scripts/sync_epics.py <flow-dir>
@@ -312,8 +313,8 @@ as a plugin, the cache is nested **by version** and old versions are kept, so
 resolve it rather than guessing — take the highest, not the first:
 
 ```bash
-SKILL_DIR=$(ls -d ~/.claude/plugins/cache/*/authored/*/skills/coduo-flow \
-  | sort -V | tail -1)
+SKILL_DIR=$(ls -d ~/.claude/plugins/cache/*/coduo/*/skills/coduo-flow \
+  | awk -F/ '{print $(NF-2), $0}' | sort -V | tail -1 | cut -d' ' -f2-)
 ```
 
 Write the resolved command into the map's README so the next person does not
@@ -379,7 +380,7 @@ fallback below.
    `package.json`, and never run `lavish-axi share`, which publishes the
    artifact to a public third-party host with no true delete.
 2. The human annotates cards, question rows and text, then sends. You run
-   `npx -y lavish-axi poll docs/flow/<name>/flow.html` and leave it running.
+   `LAVISH_AXI_TELEMETRY=0 npx -y lavish-axi poll docs/flow/<name>/flow.html` and leave it running.
    Never pass `--timeout-ms`. If a poll is interrupted, re-run it — feedback
    stays queued until delivered and delivery consumes it, so read each response
    whole.
@@ -399,14 +400,14 @@ fallback below.
    it is generated and the next build destroys any change made there. lavish-axi
    watches the file and live-reloads on save, so the human sees your rebuild.
 5. Report back and keep waiting:
-   `npx -y lavish-axi poll <file> --agent-reply "<what changed>"`.
+   `LAVISH_AXI_TELEMETRY=0 npx -y lavish-axi poll <file> --agent-reply "<what changed>"`.
 6. Rendering failures the structural checks cannot see — a chip white on white,
    a clipped label — are filed passively in lavish-axi's **Layout issues** inbox
    and reach you only when the human queues them, arriving tagged
    `layout-warnings`. Fix those in the **shell template or the generator**, never
    in `flow.html`.
 
-When the round is done, `npx -y lavish-axi stop` shuts the background server.
+When the round is done, `LAVISH_AXI_TELEMETRY=0 npx -y lavish-axi stop` shuts the background server.
 
 Where you cannot open a browser, verify structurally instead and **say plainly
 that you have not looked at it**: every note id present in the HTML, the lane

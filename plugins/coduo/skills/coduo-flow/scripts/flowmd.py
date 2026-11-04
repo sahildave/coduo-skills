@@ -23,10 +23,22 @@ _UL = re.compile(r"^(\s*)[-*+]\s+(.*)$")
 _OL = re.compile(r"^(\s*)\d+[.)]\s+(.*)$")
 _QUOTE = re.compile(r"^>\s?(.*)$")
 _TABLE_RULE = re.compile(r"^\s*\|?[\s:|-]+\|[\s:|-]*$")
+_SCHEME = re.compile(r"[a-z][a-z0-9+.-]*:", re.I)
+_LINK_SCHEMES = ("http:", "https:", "mailto:")
 
 
 def _slug(text):
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+def _safe_url(url):
+    """A link target with no scheme, or a web one. Browsers drop control
+    characters before reading a scheme, and the code-span placeholder is one, so
+    neither may reach an href."""
+    if any(ord(c) < 0x20 for c in url):
+        return False
+    scheme = _SCHEME.match(url)
+    return not scheme or scheme.group(0).lower() in _LINK_SCHEMES
 
 
 def inline(text):
@@ -45,7 +57,8 @@ def inline(text):
     text = _LINK.sub(
         lambda m: '<a %shref="%s">%s</a>'
         % ("data-lavish-action " if m.group(2).startswith("#") else "",
-           html.escape(m.group(2)), m.group(1)),
+           html.escape(m.group(2)), m.group(1))
+        if _safe_url(m.group(2)) else m.group(1),
         text,
     )
     text = _BOLD.sub(r"<strong>\1</strong>", text)
@@ -84,7 +97,9 @@ def render(md, id_prefix=""):
     reaches the `#open-<id>` wrapper. Prefixing with `note-<id>-` makes each
     heading id unique; the rail's `data-goto` reads the same prefixed id, so the
     two stay in step."""
-    lines = md.replace("\r\n", "\n").split("\n")
+    # \x00 and \x01 are this renderer's own markers; from a note they would pass
+    # raw HTML through `_list` and `inline`.
+    lines = re.sub("[\x00\x01]", "", md).replace("\r\n", "\n").split("\n")
     out, sections, i = [], [], 0
     para = []
 
