@@ -21,14 +21,15 @@ A human runs this because the steps need a person at a dashboard.
 |---|---|---|
 | 1 | Copies the release read token and repo name, prod to dev | Secret store dev |
 | 2 | Sets the test sign-in switch to `true` and a random password (`openssl rand -base64 32`) | Secret store dev |
-| 3 | Password to the clipboard, opens the dev auth Users page, owner creates free and pro with auto-confirm, clipboard cleared | Nothing |
+| 3 | Password to the clipboard, opens the dev auth Users page, owner switches the Email provider on, then creates free and pro with auto-confirm, clipboard cleared | Nothing |
 | 4 | Owner pastes the pro user's id (public); wizard prints the grant command | Nothing |
-| 5 | Probes staging for both fixtures (expects a redirect) and production (expects 404) | Nothing |
+| 5 | Probes staging for both fixtures (expects a redirect to the staging origin; a gate's 3xx fails) and production (expects 404) | Nothing |
 
 ## Rules the wizard keeps
 
 - **Refuses before stage 1** if any variable is empty or a `<placeholder>`, the destination env is not `dev`, `development`, `staging`, `test` or `qa`, the auth ref equals the prod ref or looks like prod, or the staging URL equals production or lacks a staging label.
 - Vars go to the secret store only, never `.env` or a CI secret. Secrets pass only through pipes, unexported shell variables held briefly while the wizard runs, one 0600 temp file and, in stage 3, the clipboard; none reaches an argument, a log or the history. The temp file is emptied after each write and removed on exit, including Ctrl-C, but a SIGKILL or power loss during a write can leave a secret in it.
 - Every overwrite asks first, so re-running is safe.
+- Password sign-in fails with `email_provider_disabled` (HTTP 422) unless the Email provider is on, so stage 3 walks the owner through dev project > Authentication > Sign In / Providers > Email: switch Email on, then turn OFF "Allow new users to sign up", so only the fixtures can sign in.
 - Staging needs a redeploy to see new values; stage 5 asks for it before probing.
 - The test sign-in route must itself fail closed (404 unless the switch, a preview environment, the dev auth project and the server-side password all hold). The caller sends no password, so anyone who reaches staging can sign in as a fixture. So never enable the switch in production, accept only a fixed allowlist of fixtures, and restrict who can reach staging. If the repo has no such route, stop: that is a separate ticket, not this wizard's job.

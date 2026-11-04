@@ -263,6 +263,8 @@ trap cleanup EXIT
 
 # status URL prints only the HTTP code; redirects are not followed.
 status() { curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$1" 2>/dev/null || printf '000'; }
+# probe URL prints the HTTP code, a space, then the absolute redirect target.
+probe() { curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 20 "$1" 2>/dev/null || true; }
 
 refuse_production || exit 1
 if [[ "${1:-}" == "--check" ]]; then printf '  %s✓ config ok%s\n' "$GREEN" "$RESET"; exit 0; fi
@@ -311,7 +313,8 @@ CLIP_USED=1
 inf_get "$DST_ENV" "$TEST_PASSWORD_NAME" | pbcopy
 open_url "https://supabase.com/dashboard/project/$SUPABASE_REF/auth/users"
 step "Check the project ref in the URL is the DEV project: $SUPABASE_REF"
-step "Add user > Create new user. Email: $FREE_EMAIL. Paste the password. Tick Auto Confirm User. Create."
+step "Authentication > Sign In / Providers > Email: switch Email on, then turn OFF \"Allow new users to sign up\", so only the fixtures can sign in. Save."
+step "Back in Authentication > Users: Add user > Create new user. Email: $FREE_EMAIL. Paste the password. Tick Auto Confirm User. Create."
 step "Repeat for $PRO_EMAIL, pasting the same password (still on the clipboard)."
 step "If a user already exists and you replaced the password in stage 2, open the user, choose Reset password, and paste."
 pause "Both users exist and show as confirmed? Press Enter."
@@ -336,10 +339,13 @@ pause "Staging redeployed? Press Enter."
 # fixture. The route's rule is in SKILL.md: never on in production, a fixed
 # fixture allowlist, restricted staging access.
 fails=0
+app=${STAGING_URL#https://}; app=https://${app%%/*}
 for f in "$FREE_FIXTURE:$FREE_EMAIL" "$PRO_FIXTURE:$PRO_EMAIL"; do
-  code=$(status "$STAGING_URL$TEST_SIGN_IN_PATH${f%%:*}")
-  if [[ "$code" =~ ^3 ]]; then printf '  %s✓ PASS%s staging %s → %s\n' "$GREEN" "$RESET" "${f%%:*}" "$code"
-  else printf '  %s✗ FAIL%s staging %s → %s (404: flag off or not redeployed; 401: user or password wrong)\n' "$RED" "$RESET" "${f%%:*}" "$code"; fails=1; fi
+  read -r code target <<<"$(probe "$STAGING_URL$TEST_SIGN_IN_PATH${f%%:*}")"
+  # A 3xx alone proves nothing: an access gate redirects too. Only the app's own origin counts.
+  if [[ "$code" =~ ^3 && ( "$target" == "$app" || "$target" == "$app"/* ) ]]; then printf '  %s✓ PASS%s staging %s → %s\n' "$GREEN" "$RESET" "${f%%:*}" "$code"
+  elif [[ "$code" =~ ^3 ]]; then printf '  %s✗ FAIL%s staging %s → %s to %s (not the app: an access gate stopped the probe, so nothing signed in)\n' "$RED" "$RESET" "${f%%:*}" "$code" "${target%%\?*}"; fails=1
+  else printf '  %s✗ FAIL%s staging %s → %s (404: flag off or not redeployed; 401: user or password wrong, or a route hiding a 422; 422: email_provider_disabled, switch the Email provider on, stage 3)\n' "$RED" "$RESET" "${f%%:*}" "$code"; fails=1; fi
 done
 code=$(status "$PROD_URL${TEST_SIGN_IN_PATH}$FREE_FIXTURE")
 if [[ "$code" == "404" ]]; then printf '  %s✓ PASS%s production → 404\n' "$GREEN" "$RESET"
