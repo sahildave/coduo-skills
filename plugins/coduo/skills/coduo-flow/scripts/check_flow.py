@@ -228,6 +228,14 @@ def main(flow_dir):
         if fm.get("kind") and fm["kind"] not in kinds:
             fail('%s: kind "%s" is not in flow.json kinds (%s)'
                  % (name, fm["kind"], ", ".join(sorted(kinds))))
+        milestones = cfg.get("milestones") or {}
+        if milestones:
+            mile = str(fm.get("milestone") or "").strip()
+            if not mile:
+                warn("%s: no `milestone:`; it dims under every milestone filter" % name)
+            elif mile not in milestones:
+                fail('%s: milestone "%s" is not in flow.json milestones (%s)'
+                     % (name, mile, ", ".join(milestones)))
         # "Dim what is built" keys on `done`, and a danger-toned kind - `gap`,
         # `blocker` - is a card that says *not* built. A note that is both dims
         # itself out of the map while its colour insists it is missing, and the

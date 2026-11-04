@@ -234,7 +234,7 @@ svg{display:block}
 .ruler .tick.band-1{color:var(--s-screen)}
 .ruler .tick.band-2{color:var(--s-rec)}
 .ruler .tick.band-3{color:var(--s-state)}
-.gantt-name{grid-column:1;grid-row:1;display:flex;align-items:baseline;gap:8px;padding:10px 12px 10px 0;z-index:2}
+.gantt-name{grid-column:1;grid-row:1;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;padding:10px 12px 10px 0;z-index:2}
 .gantt-name .t{font-family:var(--font-display);font-size:13px;font-weight:500;line-height:1.3;color:var(--fg);cursor:pointer}
 .gantt-name .t:hover{color:var(--s-screen)}
 /* One ink for every bar. The fills already carry the meaning; two text
@@ -321,6 +321,15 @@ svg{display:block}
 /* Filtered-out nodes stay clickable — they are still part of the graph, they
    are just not what you asked for. Opacity, not display. */
 .node.dim{opacity:.5}
+.gantt-row.dim{opacity:.35}
+.gantt-group{padding:14px 0 6px;font-family:var(--font-mono);font-size:12px;letter-spacing:.12em;
+  text-transform:uppercase;font-weight:600;color:var(--fg-3);border-top:1px solid var(--rule)}
+.gantt-group span{margin-left:6px;color:var(--fg-2)}
+summary.gantt-group{cursor:pointer;list-style:none}
+summary.gantt-group::-webkit-details-marker{display:none}
+summary.gantt-group::before{content:"\25B8";display:inline-block;width:1.2em}
+details[open]>summary.gantt-group::before{content:"\25BE"}
+.gantt-name .gl{font:12px var(--font-ui);color:var(--fg-3)}
 .node{transition:opacity .15s ease}
 
 /* Type floor: nothing on this page is below 12px. The mono eyebrows and chips
@@ -395,11 +404,12 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--rule);font-si
   color:var(--fg-3);max-width:70ch}
 footer a{color:var(--s-screen);cursor:pointer}
 @media (max-width:760px){.wrap{padding:32px 18px 52px}.full{margin:0 -18px}
+  .map-controls{margin:0 -18px;padding:6px 18px 12px}
   .scroller{padding:14px 18px 18px}#body{padding:20px 18px 52px}.standfirst{font-size:17px}}
 
 /* User path tab */
-.pcount{font:13px var(--font-ui);color:var(--fg-2);align-self:center}
-.pcount b{color:var(--fg);font-size:15px}
+.filterbar .tally.pill{margin:0 0 0 auto}
+.tally.pill li{padding:6px 10px}
 .pscroll{overflow:auto;max-height:calc(100vh - 110px);padding-top:0}
 .phead{position:sticky;top:0;z-index:3;background:var(--card);width:max-content}
 .pbody{position:relative;width:max-content}
@@ -413,7 +423,7 @@ footer a{color:var(--s-screen);cursor:pointer}
 .ptrack{fill:var(--rule)}
 .pq{font:700 15px var(--font-ui)}
 .pt-later{opacity:.7}
-#tab-path .full{width:100vw;margin-left:calc(50% - 50vw);margin-right:0}
+#tab-path .full,#tab-roadmap .full{width:100vw;margin-left:calc(50% - 50vw);margin-right:0}
 #tab-path .node.dim{opacity:.4}
 #tab-path .node.dim rect{stroke-opacity:.12}
 
@@ -469,6 +479,7 @@ footer a{color:var(--s-screen);cursor:pointer}
   </div>
 
 {{TABNAV}}
+{{MILESTONES}}
 
 {{PATH}}
   <section class="tabpanel" id="tab-roadmap" role="tabpanel" aria-labelledby="tb-roadmap">
@@ -541,6 +552,7 @@ footer a{color:var(--s-screen);cursor:pointer}
         t.tabIndex = on ? 0 : -1
         document.getElementById(t.getAttribute('aria-controls')).hidden = !on
       })
+      if (typeof countOpen === 'function') countOpen()
       if (push) {
         history.pushState(null, '', '#' + hit.getAttribute('aria-controls'))
         hit.focus()
@@ -614,9 +626,30 @@ footer a{color:var(--s-screen);cursor:pointer}
     // tab's are independent even though both are called "cats". Groups AND
     // together — "high" and "code" means high-severity code risks, not either —
     // because that is what stacking two filters is for.
+    var ms = ''
+    // Cumulative: a milestone shows itself and every earlier one, in chip order
+    // (the order of flow.json's milestones). A note with none never matches.
+    function inMs(v) {
+      if (!ms) return true
+      var order = [].slice.call(document.querySelectorAll('.msbar .chip'))
+        .map(function (c) { return c.getAttribute('data-value') }).filter(Boolean)
+      var i = order.indexOf(v)
+      return i > -1 && i <= order.indexOf(ms)
+    }
+    // The open-tickets pill: distinct ids in data-open across what the visible
+    // tab shows, i.e. not dimmed by a filter and not hidden by one.
+    function countOpen() {
+      var pill = document.querySelector('[data-open-count]')
+      var panel = document.querySelector('.tabpanel:not([hidden])')
+      if (!pill || !panel) return
+      var seen = {}
+      ;[].slice.call(panel.querySelectorAll('[data-open]:not(.dim):not([hidden])')).forEach(function (el) {
+        el.getAttribute('data-open').split(' ').forEach(function (t) { if (t) seen[t] = 1 })
+      })
+      pill.textContent = Object.keys(seen).length
+    }
     function applyFilters(panel) {
       var bars = [].slice.call(panel.querySelectorAll('.filterbar'))
-      if (!bars.length) return
       var groups = bars.map(function (bar) {
         return {
           key: bar.getAttribute('data-group'),
@@ -628,7 +661,7 @@ footer a{color:var(--s-screen);cursor:pointer}
       var shown = 0
       ;[].slice.call(panel.querySelectorAll('[data-filterable]')).forEach(function (ul) {
         [].slice.call(ul.children).forEach(function (li) {
-          var hit = groups.every(function (g) {
+          var hit = inMs(li.getAttribute('data-ms')) && groups.every(function (g) {
             if (!g.on.length) return true
             var have = (li.getAttribute('data-' + g.key) || '').split(' ')
             return g.on.some(function (v) { return have.indexOf(v) > -1 })
@@ -641,6 +674,9 @@ footer a{color:var(--s-screen);cursor:pointer}
       // the graph and still worth clicking, it just should not shout.
       var map = panel.querySelector('[data-dimmable]')
       if (map) {
+        ;[].slice.call(map.querySelectorAll('.gantt-row[data-ms]')).forEach(function (r) {
+          r.classList.toggle('dim', !inMs(r.getAttribute('data-ms')))
+        })
         var done = groups.filter(function (g) { return g.key === 'done' })[0]
         var attrs = groups.filter(function (g) { return g.key !== 'done' && g.on.length })
         ;[].slice.call(map.querySelectorAll('.node')).forEach(function (g) {
@@ -649,13 +685,36 @@ footer a{color:var(--s-screen);cursor:pointer}
             return !a.on.some(function (v) { return have.indexOf(v) > -1 })
           })
           var offDone = done && done.on.length && g.getAttribute('data-done') === '1'
-          g.classList.toggle('dim', !!(offCat || offDone))
+          var offMs = !inMs(g.getAttribute('data-ms'))
+          g.classList.toggle('dim', !!(offCat || offDone || offMs))
         })
       }
       var msg = panel.querySelector('.no-rows')
       if (msg) msg.hidden = shown > 0
+      countOpen()
     }
-    ;[].slice.call(document.querySelectorAll('.filterbar')).forEach(function (bar) {
+    // One milestone for the whole page: chosen once, applied to every tab, and
+    // the open-question and risk counts follow the rows that remain.
+    function applyMs() {
+      ;[].slice.call(document.querySelectorAll('.tabpanel')).forEach(applyFilters)
+      ;['questions', 'risks'].forEach(function (key) {
+        var n = [].slice.call(document.querySelectorAll('#tab-' + key + ' ul.rows:not(.settled) > li'))
+          .filter(function (li) { return inMs(li.getAttribute('data-ms')) }).length
+        var em = document.querySelector('#tb-' + key + ' em'); if (em) em.textContent = n
+        var b = document.querySelector('.quick button[data-tab="' + key + '"] b')
+        if (b) { b.textContent = n; b.className = !n ? 'clear' : key === 'risks' ? 'hot' : '' }
+      })
+    }
+    var msbar = document.querySelector('.msbar')
+    if (msbar) msbar.addEventListener('click', function (e) {
+      var chip = e.target.closest('.chip'); if (!chip) return
+      ms = chip.getAttribute('data-value')
+      ;[].slice.call(msbar.querySelectorAll('.chip')).forEach(function (c) {
+        c.classList.toggle('on', c === chip); c.setAttribute('aria-pressed', c === chip)
+      })
+      applyMs()
+    })
+    ;[].slice.call(document.querySelectorAll('.filterbar:not(.msbar)')).forEach(function (bar) {
       var panel = bar.closest('.tabpanel') || document
       var multi = bar.getAttribute('data-multi') === '1'
       bar.addEventListener('click', function (e) {
@@ -676,6 +735,7 @@ footer a{color:var(--s-screen);cursor:pointer}
       })
       applyFilters(panel)
     })
+    applyMs()
 
     // Note tabs. The panel's markup is copied in on open, so this is delegated
     // from #body and keeps working for every note without rebinding.

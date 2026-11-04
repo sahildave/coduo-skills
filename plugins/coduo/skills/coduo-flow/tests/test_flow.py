@@ -409,6 +409,54 @@ class TestTimeline(Flow):
         self.assertIn("gantt", html.lower())
         self.assertIn("Away", html)
 
+    def test_done_note_without_start_is_a_shipped_row(self):
+        self.gantt_flow()
+        self.write("03-c.md", note("c", "C", extra="status: validated\n").replace("status: proposed\n", "", 1))
+        self.build()
+        html = self.html()
+        self.assertIn('<details class="gantt-sec"><summary class="gantt-group">Shipped <span>1</span>', html)
+        self.assertNotIn("<details open", html)
+        self.assertIn('class="bar e-done" data-note="c"', html)
+
+    def test_schedule_splits_by_milestone(self):
+        self.config(timeline={"units": 8}, milestones={"m1": "First", "m2": "Second"})
+        self.write("01-a.md", note("a", "A", unl=["b"], extra="start: 1\nlength: 2\nmilestone: m1\n"))
+        self.write("02-b.md", note("b", "B", dep=["a"], extra="start: 3\nlength: 4\nmilestone: m2\n"))
+        self.build()
+        html = self.html()
+        self.assertIn('class="gantt-group">First <span>1</span>', html)
+        self.assertIn('class="gantt-group">Second <span>1</span>', html)
+
+    def open_pill_flow(self, **cfg):
+        self.config(timeline={"units": 8}, **cfg)
+        self.write("01-a.md", note("a", "A", extra="start: 1\nlength: 2\nmilestone: m1\nepics: [68]\n"
+                   "questions:\n  - \"code: Q?\"\n"))
+        self.write("epics.json", json.dumps({"repo": "o/r", "epics": {"68": {
+            "number": 68, "title": "E", "state": "open", "stateReason": "", "url": "https://x/68",
+            "subIssues": [{"number": 680, "title": "c", "state": "open", "url": "https://x/680"}]}}}))
+        self.build()
+        return self.html()
+
+    def test_open_tickets_pill_is_one_pill_in_the_milestone_row(self):
+        html = self.open_pill_flow(milestones={"m1": "First", "m2": "Second"})
+        self.assertEqual(html.count("<b data-open-count>"), 1)
+        row = html.split('class="filterbar msbar"')[1].split("</div>")[0]
+        self.assertIn("<b data-open-count>", row)
+        # every tab's rows carry the ids the one counter reads
+        for tab in ("roadmap", "schedule", "questions"):
+            panel = html.split('id="tab-%s"' % tab)[1].split('class="tabpanel"')[0]
+            self.assertIn('data-open="680"', panel, tab)
+
+    def test_open_tickets_pill_without_milestones_sits_alone_in_the_row(self):
+        html = self.open_pill_flow()
+        self.assertEqual(html.count("<b data-open-count>"), 1)
+        self.assertIn('class="filterbar msbar"><ul class="tally pill">', html)
+
+    def test_no_shipped_group_without_done_notes(self):
+        self.gantt_flow()
+        self.build()
+        self.assertNotIn('class="gantt-group"', self.html())
+
     def test_no_gantt_without_timing(self):
         self.minimal()
         self.build()

@@ -161,6 +161,15 @@ def esc(s):
     return html.escape(str(s))
 
 
+def msattr(n):
+    """The milestone and open tickets of a card, bar or row, for the page-wide
+    filter and the open-tickets pill, which counts these on whatever is shown."""
+    if "open_ids" not in n:
+        path_tickets(n)
+    return ' data-ms="%s" data-open="%s"' % (
+        esc(n.get("milestone", "")), " ".join(str(i) for i in sorted(n["open_ids"])))
+
+
 def _int(v):
     try:
         return int(str(v).strip())
@@ -238,6 +247,7 @@ def load(flow_dir):
             "step": str(fm.get("step") or ""), "area": str(fm.get("area") or ""),
             "column": str(fm.get("column") or ""), "phase": str(fm.get("phase") or "now"), "domains": fm.get("domains") or [],
             "epics": epics_of(name, fm),
+            "milestone": str(fm.get("milestone") or "").strip(),
             "epic_infos": [epics.get(str(e)) or {} for e in epics_of(name, fm)],
             "start": _int(fm.get("start")),
             # A start with no length is one unit — the checker allows it, so the
@@ -461,14 +471,14 @@ def render_svg(cfg, kinds, layers, edges, loops, spine, by_id, width, height, le
             edge = 'stroke="var(--s-rec)" stroke-width="1.5" stroke-dasharray="6 4"' \
                 if n.get("unbuilt") else 'stroke="%s" stroke-width="1.5"' % stroke
             p.append(
-                '<g id="node-%s" class="node%s" data-note="%s" data-cats="%s" data-done="%s" '
+                '<g id="node-%s" class="node%s" data-note="%s" data-cats="%s" data-done="%s"%s '
                 'tabindex="0" role="button" aria-label="Open %s">'
                 '<rect x="%d" y="%d" width="%d" height="%d" rx="%d" fill="%s" %s/>'
                 '%s%s'
                 '<text class="nl" x="%d" y="%d" text-anchor="middle">%s</text>'
                 '<text class="ns" x="%d" y="%d" text-anchor="middle">%s</text></g>'
                 % (n["id"], " unbuilt" if n.get("unbuilt") else "",
-                   n["id"], " ".join(n.get("cats") or ["none"]), "1" if n.get("done") else "0",
+                   n["id"], " ".join(n.get("cats") or ["none"]), "1" if n.get("done") else "0", msattr(n),
                    esc(n["title"]), n["x"], n["y"], W_NODE, H_NODE, rx, fill, edge,
                    diamond, dots,
                    cx, n["y"] + 25, esc(n["node"]),
@@ -599,7 +609,20 @@ def render_map_controls(cfg, kinds, drawn, spine, loops):
     return bars, '<div class="map-key">%s</div>' % "".join(keys)
 
 
-def render_gantt(cfg, notes, spine_ids):
+def epic_chips(n):
+    chips = []
+    for num, info in zip(n["epics"], n["epic_infos"]):
+        url = epic_url(num, info)
+        if not url:
+            continue
+        chips.append('<a class="ep%s" href="%s" target="_blank" '
+                     'rel="noopener" title="%s">#%d</a>'
+                     % (" done" if epic_shipped(info) else "", esc(url),
+                        esc(info.get("title") or "Epic on the tracker"), num))
+    return "".join(chips)
+
+
+def render_gantt(cfg, notes, spine_ids, all_notes):
     """Epic-level order, drawn only when the flow declares a timeline and at
     least one note is placed on it. The map shows what blocks what; this shows
     when — the one thing a dependency graph cannot say."""
@@ -619,11 +642,37 @@ def render_gantt(cfg, notes, spine_ids):
                 return " band band-%d" % (bi % 4)
         return ""
 
-    cols = "grid-template-columns:15rem repeat(%d,1fr)" % units
-    rows = ['<div class="gantt-row ruler" style="%s"><div class="corner">%s</div>%s</div>'
+    # Done notes with no `start` are shipped work: one green bar each, in a
+    # leading "Done" column ahead of step 1.
+    shipped = sorted((n for n in all_notes if n.get("done") and not n["start"]),
+                     key=lambda n: n["id"])
+    first = 3 if shipped else 2
+    cols = "grid-template-columns:15rem %srepeat(%d,1fr)" % ("5rem " if shipped else "", units)
+    rows = ['<div class="gantt-row ruler" style="%s"><div class="corner">%s</div>%s%s</div>'
             % (cols, esc(tl.get("rowLabel", "Workstream")),
+               '<div class="tick">Done</div>' if shipped else "",
                "".join('<div class="tick%s">%d</div>' % (in_band(i), i)
                        for i in range(1, units + 1)))]
+    areas = {a_["id"]: a_["name"] for a_ in (cfg.get("path") or {}).get("areas") or []}
+    lanes = cfg.get("lanes") or []
+
+    def lane_tag(n):
+        """The swimlane a row belongs to: its `area`, else the roadmap lane of its layer."""
+        name = areas.get(n["area"]) or (lanes[n["layer"]] if n.get("layer", -1) in range(len(lanes)) else "")
+        return '<small class="gl">%s</small>' % esc(name) if name else ""
+
+    def name_cell(n):
+        return ('<div class="gantt-name"><span class="t" data-note="%s">%s</span>%s%s</div>'
+                % (n["id"], esc(n["node"]), epic_chips(n), lane_tag(n)))
+
+    done_rows = []
+    for n in shipped:
+        done_rows.append(
+            '<div class="gantt-row" style="%s"%s>%s'
+            '<div class="bars" style="grid-column:2;grid-template-columns:1fr">'
+            '<div class="bar e-done" data-note="%s"><span class="bl">Done</span></div></div></div>'
+            % (cols, msattr(n), name_cell(n), n["id"]))
+    by_ms = {}
     for n in sorted(placed, key=lambda n: (n["start"], n["length"])):
         cells = "".join('<div class="cell%s"></div>' % in_band(i)
                         for i in range(1, units + 1))
@@ -638,33 +687,37 @@ def render_gantt(cfg, notes, spine_ids):
         # shipped epic and a newer open one is still built. A card with epics
         # but none shipped is in progress (ordinary fill). Only a card with no
         # epics at all reads as hatched: the plan says it, nobody has filed it.
-        if n.get("shipped_epic"):
+        if n.get("done"):
             crit += " e-done"
         elif not n.get("epics"):
             crit += " e-none"
-        chips = []
-        for num, info in zip(n["epics"], n["epic_infos"]):
-            url = epic_url(num, info)
-            if not url:
-                continue
-            chips.append('<a class="ep%s" href="%s" target="_blank" '
-                         'rel="noopener" title="%s">#%d</a>'
-                         % (" done" if epic_shipped(info) else "", esc(url),
-                            esc(info.get("title") or "Epic on the tracker"), num))
-        chip = "".join(chips)
         span = "grid-column:%d/%d" % (n["start"], min(n["start"] + n["length"], units + 1))
-        rows.append(
-            '<div class="gantt-row" style="%s">'
-            '<div class="gantt-name"><span class="t" data-note="%s">%s</span>%s</div>'
-            '<div class="track" style="grid-column:2/-1;%s">%s</div>'
-            '<div class="bars" style="grid-column:2/-1;%s">'
+        by_ms.setdefault(n["milestone"], []).append(
+            '<div class="gantt-row" style="%s"%s>%s'
+            '<div class="track" style="grid-column:%d/-1;%s">%s</div>'
+            '<div class="bars" style="grid-column:%d/-1;%s">'
             '<div class="bar%s" data-note="%s" style="%s"><span class="bl">%d %s%s</span>'
             '</div></div></div>'
-            % (cols, n["id"], esc(n["node"]), chip,
-               "grid-template-columns:repeat(%d,1fr)" % units, cells,
-               "grid-template-columns:repeat(%d,1fr)" % units,
+            % (cols, msattr(n), name_cell(n),
+               first, "grid-template-columns:repeat(%d,1fr)" % units, cells,
+               first, "grid-template-columns:repeat(%d,1fr)" % units,
                crit, n["id"], span, n["length"], esc(label.lower()),
                "s" if n["length"] != 1 else ""))
+
+    def heading(text, count):
+        return "%s <span>%d</span>" % (esc(text), count)
+
+    if done_rows:
+        rows.append('<details class="gantt-sec"><summary class="gantt-group">%s</summary>%s</details>'
+                    % (heading("Shipped", len(done_rows)), "".join(done_rows)))
+    ms = cfg.get("milestones") or {}
+    if ms:
+        for k in list(ms) + [k for k in by_ms if k not in ms]:
+            if by_ms.get(k):
+                rows.append('<div class="gantt-group">%s</div>%s'
+                            % (heading(ms.get(k, "No milestone"), len(by_ms[k])), "".join(by_ms[k])))
+    else:
+        rows += [r for g in by_ms.values() for r in g]
 
     used = [x for x in EXECUTOR_ORDER if any(n["executor"] == x for n in placed)]
     if used:
@@ -676,8 +729,8 @@ def render_gantt(cfg, notes, spine_ids):
         if any(n["id"] in spine_ids for n in placed):
             keys.append('<span><i class="crit"></i>%s</span>'
                         % esc(cfg.get("spineLabel", "Critical path")))
-    if any(n.get("shipped_epic") for n in placed):
-        keys.append('<span><i class="e-done"></i>Shipped &mdash; an epic is closed</span>')
+    if any(n.get("done") for n in placed):
+        keys.append('<span><i class="e-done"></i>Built</span>')
     if any(not n.get("epics") for n in placed):
         keys.append('<span><i class="e-none"></i>No epic on the tracker yet</span>')
     # The two halves of the legend say different things — a solid swatch is a
@@ -691,7 +744,7 @@ def render_gantt(cfg, notes, spine_ids):
 
     return (section("schedule",
             '  <div class="full"><div class="scroller" tabindex="0" role="region" '
-            'aria-label="Timeline, scrollable"><div class="gantt">%s</div>'
+            'aria-label="Timeline, scrollable" data-dimmable><div class="gantt">%s</div>'
             '<div class="gantt-key">%s</div></div></div>'
             % ("".join(rows), "".join(keys)),
             esc(tl.get("title", "When each piece runs")),
@@ -781,7 +834,7 @@ def render_questions(cfg, notes):
 
     def qrow(tone, chip, q, n):
         cats = q.get("cats") or []
-        data = ' data-cats="%s"' % " ".join(cats or ["none"])
+        data = ' data-cats="%s"%s' % (" ".join(cats or ["none"]), msattr(n))
         return row(tone, chip, q["text"], n, ref=q.get("ref", ""), data=data, cats=cats)
 
     inner = ""
@@ -817,7 +870,7 @@ def render_risks(cfg, notes):
     def rrow(tone, r, n):
         cats = r.get("cats") or []
         return row(tone, r["sev"], r["text"], n, ref=r.get("ref", ""),
-                   data=' data-sev="%s" data-cats="%s"' % (r["sev"], " ".join(cats or ["none"])),
+                   data=' data-sev="%s" data-cats="%s"%s' % (r["sev"], " ".join(cats or ["none"]), msattr(n)),
                    cats=cats)
 
     present = [k for k in ("high", "medium", "low") if any(r["sev"] == k for r, _ in items)]
@@ -936,11 +989,12 @@ def path_card(n, x, y):
     top = y + (24 if len(label) == 2 else 31)
     text = "".join('<text class="nl" x="%d" y="%d">%s</text>' % (x + 12, top + i * 16, esc(l))
                    for i, l in enumerate(label))
-    return ('<g class="node pt-%s" data-note="%s" data-cats="%s" data-done="%s" data-pstate="%s" tabindex="0" role="button" aria-label="Open %s, %s">'
+    return ('<g class="node pt-%s" data-note="%s" data-cats="%s" data-done="%s" data-pstate="%s"%s tabindex="0" role="button" aria-label="Open %s, %s">'
             '<rect x="%d" y="%d" width="%d" height="%d" rx="13" fill="%s" stroke="%s" stroke-width="1.5"%s/>'
             '%s%s<text class="ns" x="%d" y="%d">%s</text></g>'
-            % (state, esc(n["id"]), " ".join(n.get("cats") or ["none"]),
-               "1" if state == "done" else "0", state + (" gap" if gap else ""),
+            % (state, esc(n["id"]),
+               " ".join(n.get("cats") or ["none"]),
+               "1" if state == "done" else "0", state + (" gap" if gap else ""), msattr(n),
                esc(n["title"]), esc(caption), x, y, P_W, P_H, fill, stroke,
                dash, mark, text, x + 12, y + P_H - 11, esc(caption)))
 
@@ -1035,10 +1089,9 @@ def render_path(cfg, notes):
     bars += ('<div class="filterbar" data-group="done" data-multi="1"><span class="flabel">Shipped</span>'
              '<button type="button" class="chip" data-filter="done" data-value="done" '
              'aria-pressed="false">Dim what is built</button></div>')
-    tickets = '<span class="pcount"><b>%d</b> open tickets</span>' % path_count(topics)[1]
     return "\n".join([
         '  <section class="tabpanel" id="tab-path" role="tabpanel" aria-labelledby="tb-path">',
-        '<div class="map-controls"><div class="map-bars">%s%s</div></div>' % (bars, tickets),
+        '<div class="map-controls"><div class="map-bars">%s</div></div>' % bars,
         '<div class="full"><div class="scroller pscroll" tabindex="0" role="region" '
         'aria-label="User path, scrollable" data-dimmable><div class="phead">%s</div>'
         '<div class="pbody" style="--phead:%dpx">%s%s</div></div></div>' % (head, head_h, "".join(lanes), chart),
@@ -1070,10 +1123,10 @@ def render_swimlanes(cfg, notes):
     def card(n):
         gap = not n["epics"] and n["pstate"] in ("left", "decide")
         return ('<button type="button" class="node slc %s%s" data-note="%s" data-step="%s" data-cats="%s" '
-                'data-done="%s" data-pstate="%s" aria-label="Open %s">%s</button>'
+                'data-done="%s" data-pstate="%s"%s aria-label="Open %s">%s</button>'
                 % (n["pstate"], " gap" if gap else "", esc(n["id"]), esc(n["step"]),
                    " ".join(n.get("cats") or ["none"]), "1" if n["pstate"] == "done" else "0",
-                   n["pstate"] + (" gap" if gap else ""), esc(n["title"]),
+                   n["pstate"] + (" gap" if gap else ""), msattr(n), esc(n["title"]),
                    '<span class="m">%s</span>%s' % (mark[n["pstate"]], esc(n["node"]))))
 
     head = '<div class="slh"></div>' + "".join(
@@ -1128,6 +1181,20 @@ def render_swimlanes(cfg, notes):
         '<div class="sl" data-dimmable><div class="sltop">%s<div class="sltally">%s</div></div>' % (strip, "".join(tally)),
         '<div class="slgrid" style="--cols:%d">%s%s</div></div>' % (len(cols), head, "".join(body)),
         "  </section>"])
+
+
+def render_milestones(cfg, notes):
+    """One filter for the whole page, drawn once under the tab bar so it reads
+    the same on every tab. Absent from the config, there is no control."""
+    ms = cfg.get("milestones") or {}
+    pill = '<ul class="tally pill"><li><b data-open-count>0</b> open tickets</li></ul>'
+    if not ms:
+        # No milestones, no chips: the pill sits alone in the same row.
+        return ('<div class="filterbar msbar">%s</div>\n' % pill
+                if any(n["epics"] for n in notes) else "")
+    opts = [("", "All")] + [(k, v) for k, v in ms.items()]
+    return filterbar("ms", opts, "Milestone", multi=False).replace(
+        'class="filterbar"', 'class="filterbar msbar"', 1).replace("</div>", pill + "</div>", 1)
 
 
 def render_tabnav(panels):
@@ -1302,7 +1369,7 @@ def main():
 
     questions_html, open_q = render_questions(cfg, notes)
     risks_html, unmit = render_risks(cfg, notes)
-    gantt_html = render_gantt(cfg, drawn, set(cfg.get("spine", [])))
+    gantt_html = render_gantt(cfg, drawn, set(cfg.get("spine", [])), notes)
     # Schedule sits second, directly after the map. "What blocks what" and "when"
     # are read together — a reader who has just seen the graph wants the dates
     # next, not the open questions. Questions and risks are the detail behind
@@ -1311,9 +1378,9 @@ def main():
     swimlanes_html = render_swimlanes(cfg, notes)
     panels = [
         ("path", (cfg.get("path") or {}).get("tab", "User path"), bool(path_html), 0),
+        ("swimlanes", (cfg.get("swimlanes") or {}).get("tab", "Swimlanes"), bool(swimlanes_html), 0),
         ("roadmap", cfg.get("roadmapTab", "Roadmap"), bool(edges) or not path_html, 0),
         ("schedule", ((cfg.get("timeline") or {}).get("tab", "Schedule")), bool(gantt_html), 0),
-        ("swimlanes", (cfg.get("swimlanes") or {}).get("tab", "Swimlanes"), bool(swimlanes_html), 0),
         ("questions", (cfg.get("questions") or {}).get("tab", "Open questions"),
          bool(questions_html), open_q),
         ("risks", (cfg.get("risks") or {}).get("tab", "Risks"), bool(risks_html), unmit),
@@ -1332,6 +1399,7 @@ def main():
         "MAPCONTROLS": map_bars,
         "MAPLEGEND": map_key,
         "TABNAV": tabnav,
+        "MILESTONES": render_milestones(cfg, notes),
         "QUICKVIEW": render_quick(notes, open_q, unmit),
         "QUESTIONS": questions_html,
         "RISKS": risks_html,
