@@ -465,6 +465,8 @@ A `swimlanes` block in `flow.json` adds the **Swimlanes** tab:
 - Card state is derived as on the User path tab: `phase: later` is later,
   `phase: decide` is undecided, a done status or a closed epic is built, else left. A
   left card with no `epics` reads "no ticket".
+- Filters above the grid, as on the User path tab: Status, Domain (when notes carry `domains`),
+  and Dim what is built. They dim cards rather than hide them.
 - With a `path` block the path's steps run along the top, each with its left and open
   counts; clicking a step dims the cards that sit in other steps.
 - `check_flow.py` fails a `column` or `area` not declared in the block, a `column` with

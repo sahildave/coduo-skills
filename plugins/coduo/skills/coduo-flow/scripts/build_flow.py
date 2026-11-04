@@ -1062,9 +1062,11 @@ def render_swimlanes(cfg, notes):
 
     def card(n):
         gap = not n["epics"] and n["pstate"] in ("left", "decide")
-        return ('<button type="button" class="slc %s%s" data-note="%s" data-step="%s" '
-                'aria-label="Open %s">%s</button>'
-                % (n["pstate"], " gap" if gap else "", esc(n["id"]), esc(n["step"]), esc(n["title"]),
+        return ('<button type="button" class="node slc %s%s" data-note="%s" data-step="%s" data-cats="%s" '
+                'data-done="%s" data-pstate="%s" aria-label="Open %s">%s</button>'
+                % (n["pstate"], " gap" if gap else "", esc(n["id"]), esc(n["step"]),
+                   " ".join(n.get("cats") or ["none"]), "1" if n["pstate"] == "done" else "0",
+                   n["pstate"] + (" gap" if gap else ""), esc(n["title"]),
                    '<span class="m">%s</span>%s' % (mark[n["pstate"]], esc(n["node"]))))
 
     head = '<div class="slh"></div>' + "".join(
@@ -1101,9 +1103,22 @@ def render_swimlanes(cfg, notes):
     if count("decide", inside):
         tally.append('<span class="k decide"><i></i>%d undecided</span>' % count("decide", inside))
     tally.append('<span class="k later"><i></i>%d later</span>' % count("later", topics))
+    keys = [("done", "built"), ("left", "left"), ("decide", "undecided"), ("later", "later")]
+    gaps = sum(1 for n in topics if not n["epics"] and n["pstate"] in ("left", "decide"))
+    opts = [("", "All")] + [(k, "%d %s" % (count(k, topics), l)) for k, l in keys if count(k, topics)]
+    if gaps:
+        opts.append(("gap", "%d no ticket" % gaps))
+    bars = filterbar("pstate", opts, "Status")
+    cats = cat_options(topics)
+    if cats:
+        bars += filterbar("cats", cats, "Domain")
+    bars += ('<div class="filterbar" data-group="done" data-multi="1"><span class="flabel">Shipped</span>'
+             '<button type="button" class="chip" data-filter="done" data-value="done" '
+             'aria-pressed="false">Dim what is built</button></div>')
     return "\n".join([
         '  <section class="tabpanel" id="tab-swimlanes" role="tabpanel" aria-labelledby="tb-swimlanes" hidden>',
-        '<div class="sl"><div class="sltop">%s<div class="sltally">%s</div></div>' % (strip, "".join(tally)),
+        '<div class="map-controls"><div class="map-bars">%s</div></div>' % bars,
+        '<div class="sl" data-dimmable><div class="sltop">%s<div class="sltally">%s</div></div>' % (strip, "".join(tally)),
         '<div class="slgrid" style="--cols:%d">%s%s</div></div>' % (len(cols), head, "".join(body)),
         "  </section>"])
 
