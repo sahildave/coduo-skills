@@ -27,7 +27,7 @@ This repo is a Claude Code plugin marketplace with two plugins:
 
 | Plugin | What it is |
 |---|---|
-| `coduo` | The 26 skills below, hosted here |
+| `coduo` | The 27 skills below, hosted here |
 | `mattpocock-skills` | Uses as base [Matt Pocock's engineering skills](https://github.com/mattpocock/skills), installed from upstream. `coduo-epic`, `coduo-tickets` and `coduo-implement` wrap his `to-spec`, `to-tickets` and `implement`, and the coduo-afk closeout review runs his `code-review`. Revondered to allow agents allow model invocation |
 
 ## Install
@@ -66,6 +66,7 @@ To turn them on for one project only, commit this to the project's `.claude/sett
 | Run it unattended | `coduo-afk` | A branch, one verified commit per ticket, a PR |
 | Park and resume | `coduo-afk-park` | A resume note on each epic's PR |
 | Land it | `coduo-land-pr` | Merged PR, closed issues, no leftover branches or worktrees |
+| Release a Mac app | `coduo-release-mac-app` | One local command from a pushed commit to a signed, notarized, published build and a verified update feed |
 
 ## All skills
 
