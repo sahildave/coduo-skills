@@ -313,7 +313,7 @@ CLIP_USED=1
 inf_get "$DST_ENV" "$TEST_PASSWORD_NAME" | pbcopy
 open_url "https://supabase.com/dashboard/project/$SUPABASE_REF/auth/users"
 step "Check the project ref in the URL is the DEV project: $SUPABASE_REF"
-step "Authentication > Sign In / Providers > Email: switch Email on, then turn OFF \"Allow new users to sign up\", so only the fixtures can sign in. Save."
+step "Authentication > Sign In / Providers > Email: switch Email on. Save."
 step "Back in Authentication > Users: Add user > Create new user. Email: $FREE_EMAIL. Paste the password. Tick Auto Confirm User. Create."
 step "Repeat for $PRO_EMAIL, pasting the same password (still on the clipboard)."
 step "If a user already exists and you replaced the password in stage 2, open the user, choose Reset password, and paste."
