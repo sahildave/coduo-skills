@@ -782,5 +782,33 @@ class TestRobustness(Flow):
         self.assertIn('class="gantt-row"', self.html())
 
 
+
+class TestSwimlanes(Flow):
+    SW = {"columns": [{"id": "built", "name": "Built"}, {"id": "next", "name": "Next"}],
+          "rows": [{"id": "app", "name": "App"}], "line": "next"}
+
+    def test_tab_only_when_filled_and_bad_names_fail(self):
+        self.config(swimlanes=self.SW)
+        self.write("01-a.md", note("a", "A", extra="area: app\ncolumn: built\n"))
+        self.write("02-b.md", note("b", "B"))
+        self.assertEqual(self.check().returncode, 0, self.check().stdout)
+        self.assertEqual(self.build().returncode, 0)
+        self.assertIn('id="tab-swimlanes"', self.html())
+        self.assertIn('data-note="a"', self.html().split('id="tab-swimlanes"')[1])
+        self.write("01-a.md", note("a", "A", extra="area: app\ncolumn: nope\n"))
+        r = self.check()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("column", r.stdout + r.stderr)
+        self.write("01-a.md", note("a", "A", extra="area: nowhere\ncolumn: built\n"))
+        self.assertNotEqual(self.check().returncode, 0)
+
+    def test_no_block_no_tab(self):
+        self.config()
+        self.write("01-a.md", note("a", "A"))
+        self.assertEqual(self.build().returncode, 0)
+        self.assertNotIn("tab-swimlanes", self.html())
+        self.write("01-a.md", note("a", "A", extra="area: app\ncolumn: built\n"))
+        self.assertNotEqual(self.check().returncode, 0)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

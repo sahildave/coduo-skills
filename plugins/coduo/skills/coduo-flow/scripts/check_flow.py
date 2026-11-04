@@ -35,6 +35,45 @@ def warn(m):
     warnings.append(m)
 
 
+def _swimlanes(name, fm, cfg):
+    """`column` and `area` place a note on the Swimlanes tab; both must name a
+    column and a row the flow.json block declares, or the card is misplaced."""
+    sw = cfg.get("swimlanes") or {}
+    if not fm.get("column"):
+        return
+    if not sw:
+        fail("%s: has `column` but flow.json declares no `swimlanes`" % name)
+        return
+    cols = {c.get("id") for c in sw.get("columns") or []}
+    rows = {r.get("id") for r in sw.get("rows") or (cfg.get("path") or {}).get("areas") or []}
+    if str(fm["column"]) not in cols:
+        fail('%s: column "%s" not in swimlanes columns (%s)' % (name, fm["column"], ", ".join(sorted(cols))))
+    if not fm.get("area"):
+        fail("%s: has `column` but no `area` (the row)" % name)
+    elif str(fm["area"]) not in rows:
+        fail('%s: area "%s" not in swimlanes rows (%s)' % (name, fm["area"], ", ".join(sorted(rows))))
+
+
+def _swimlanes_cfg(cfg):
+    sw = cfg.get("swimlanes")
+    if not sw:
+        return
+    cols = sw.get("columns") or []
+    rows = sw.get("rows") or (cfg.get("path") or {}).get("areas") or []
+    if not cols:
+        fail("flow.json swimlanes needs `columns`: a list of {id, name}")
+    if not rows:
+        fail("flow.json swimlanes needs `rows` (or a `path` block with areas)")
+    for label, items in (("column", cols), ("row", rows)):
+        ids = [i.get("id") for i in items]
+        if any(not i.get("id") or not i.get("name") for i in items):
+            fail("flow.json swimlanes %ss need an id and a name each" % label)
+        if len(set(ids)) != len(ids):
+            fail("flow.json swimlanes has a duplicate %s id" % label)
+    if sw.get("line") and sw["line"] not in [c.get("id") for c in cols]:
+        fail('flow.json swimlanes line "%s" is not a column id' % sw["line"])
+
+
 def _timing(name, fm, cfg):
     """`start`/`length` place a note on the timeline. A bar running past the
     end of the timeline is silently clipped when drawn, so catch it here."""
@@ -149,6 +188,7 @@ def main(flow_dir):
     # defaults instead makes every correctly-prefixed risk warn "names no
     # severity". Same mutable sets, so this must run before any note is checked.
     set_categories(cfg)
+    _swimlanes_cfg(cfg)
     kinds = dict(DEFAULT_KINDS)
     kinds.update(cfg.get("kinds", {}))
     index = cfg.get("index", "README.md")
@@ -247,6 +287,7 @@ def main(flow_dir):
             fail('duplicate id "%s" in %s and %s' % (nid, name, notes[nid]["file"]))
         if nid:
             _timing(name, fm, cfg)
+            _swimlanes(name, fm, cfg)
             notes[nid] = {"file": name, "dep": fm.get("depends_on", []) or [],
                           "unl": fm.get("unlocks", []) or [],
                           "loops": fm.get("loops_to", []) or [],

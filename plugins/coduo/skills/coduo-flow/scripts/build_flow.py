@@ -229,7 +229,7 @@ def load(flow_dir):
             "loops": fm.get("loops_to", []) or [],
             "executor": (fm.get("executor") or "").strip().lower(),
             "step": str(fm.get("step") or ""), "area": str(fm.get("area") or ""),
-            "phase": str(fm.get("phase") or "now"), "domains": fm.get("domains") or [],
+            "column": str(fm.get("column") or ""), "phase": str(fm.get("phase") or "now"), "domains": fm.get("domains") or [],
             "epics": epics_of(name, fm),
             "epic_infos": [epics.get(str(e)) or {} for e in epics_of(name, fm)],
             "start": _int(fm.get("start")),
@@ -1038,6 +1038,76 @@ def render_path(cfg, notes):
         "  </section>"])
 
 
+def render_swimlanes(cfg, notes):
+    """Rows by columns: each topic is a card in the row its `area` names and
+    the column its `column` names. The user's path, when there is one, runs
+    along the top. State comes from the same place as the path tab, so a topic
+    reads the same on both."""
+    sw = cfg.get("swimlanes") or {}
+    cols = sw.get("columns") or []
+    rows = sw.get("rows") or (cfg.get("path") or {}).get("areas") or []
+    if not cols or not rows:
+        return ""
+    col_ids, row_ids = {c["id"] for c in cols}, {r["id"] for r in rows}
+    topics = [n for n in notes if n.get("column")]
+    for n in topics:
+        if "pstate" not in n:
+            n["open"], n["total"] = path_tickets(n)
+            n["pstate"] = path_state(n)
+        if n["column"] not in col_ids or n["area"] not in row_ids:
+            die("%s: row or column is not in flow.json's swimlanes" % n["file"])
+    line = sw.get("line")
+    line_at = next((i for i, c in enumerate(cols) if c["id"] == line), len(cols))
+    mark = {"done": "\u2713", "left": "\u25cf", "decide": "?", "later": "\u2192"}
+
+    def card(n):
+        gap = not n["epics"] and n["pstate"] in ("left", "decide")
+        return ('<button type="button" class="slc %s%s" data-note="%s" data-step="%s" '
+                'aria-label="Open %s">%s</button>'
+                % (n["pstate"], " gap" if gap else "", esc(n["id"]), esc(n["step"]), esc(n["title"]),
+                   '<span class="m">%s</span>%s' % (mark[n["pstate"]], esc(n["node"]))))
+
+    head = '<div class="slh"></div>' + "".join(
+        '<div class="slh%s">%s</div>' % (" edge" if i == line_at else "", esc(c["name"]))
+        for i, c in enumerate(cols))
+    body = []
+    for r in rows:
+        body.append('<div class="slr"><b>%s</b>%s</div>'
+                    % (esc(r["name"]), "<span>%s</span>" % esc(r["note"]) if r.get("note") else ""))
+        for i, c in enumerate(cols):
+            mine = [n for n in topics if n["area"] == r["id"] and n["column"] == c["id"]]
+            body.append('<div class="slx%s">%s</div>'
+                        % (" edge" if i == line_at else "", "".join(card(n) for n in mine)))
+
+    strip = ""
+    steps = (cfg.get("path") or {}).get("steps") or []
+    if steps:
+        buttons = []
+        for s_ in steps:
+            mine = [n for n in topics if n["step"] == s_["id"] and n["pstate"] != "later"]
+            left, tickets = path_count(mine)
+            if not mine:
+                continue
+            buttons.append(
+                '<button type="button" class="sls %s" data-sl-step="%s"><b>%s</b><small>%s</small></button>'
+                % ("left" if left else "done", esc(s_["id"]), esc(s_["name"]),
+                   "%d left \u00b7 %d open" % (left, tickets) if left else "Clear"))
+        strip = '<div class="slstrip" aria-label="User path">%s</div>' % "".join(buttons)
+
+    inside = [n for n in topics if n["column"] in [c["id"] for c in cols[:line_at]] and n["pstate"] != "later"]
+    count = lambda st, ns: sum(1 for n in ns if n["pstate"] == st)
+    tally = ['<span class="k done"><i></i>%d built</span>' % count("done", inside),
+             '<span class="k left"><i></i>%d left in the line</span>' % count("left", inside)]
+    if count("decide", inside):
+        tally.append('<span class="k decide"><i></i>%d undecided</span>' % count("decide", inside))
+    tally.append('<span class="k later"><i></i>%d later</span>' % count("later", topics))
+    return "\n".join([
+        '  <section class="tabpanel" id="tab-swimlanes" role="tabpanel" aria-labelledby="tb-swimlanes" hidden>',
+        '<div class="sl"><div class="sltop">%s<div class="sltally">%s</div></div>' % (strip, "".join(tally)),
+        '<div class="slgrid" style="--cols:%d">%s%s</div></div>' % (len(cols), head, "".join(body)),
+        "  </section>"])
+
+
 def render_tabnav(panels):
     """One tab is not a tab bar — a flow with no timeline, no risks and no open
     questions is still just a map, and should look like one."""
@@ -1215,10 +1285,12 @@ def main():
     # next, not the open questions. Questions and risks are the detail behind
     # both and follow them.
     path_html = render_path(cfg, notes)
+    swimlanes_html = render_swimlanes(cfg, notes)
     panels = [
         ("path", (cfg.get("path") or {}).get("tab", "User path"), bool(path_html), 0),
         ("roadmap", cfg.get("roadmapTab", "Roadmap"), bool(edges) or not path_html, 0),
         ("schedule", ((cfg.get("timeline") or {}).get("tab", "Schedule")), bool(gantt_html), 0),
+        ("swimlanes", (cfg.get("swimlanes") or {}).get("tab", "Swimlanes"), bool(swimlanes_html), 0),
         ("questions", (cfg.get("questions") or {}).get("tab", "Open questions"),
          bool(questions_html), open_q),
         ("risks", (cfg.get("risks") or {}).get("tab", "Risks"), bool(risks_html), unmit),
@@ -1244,6 +1316,7 @@ def main():
         "SEARCH": search,
         "GANTT": gantt_html,
         "PATH": path_html,
+        "SWIMLANES": swimlanes_html,
         "FONTS": ('<link rel="preconnect" href="https://fonts.googleapis.com">\n'
                   '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
                   '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'

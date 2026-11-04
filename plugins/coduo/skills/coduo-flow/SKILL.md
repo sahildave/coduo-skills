@@ -96,6 +96,14 @@ status and domain filters that dim. Start here on a new product; schema in
 [`references/note-schema.md`](references/note-schema.md). Path cards carry
 `data-note="<id>"` rather than `node-<id>`.
 
+A `swimlanes` block adds a **Swimlanes** tab beside Roadmap and Schedule: rows
+by columns, every topic a card in the row its `area` names and the column its
+`column` names, the path's steps as a strip along the top, and a built / left /
+later tally. Use it to show scope against a bar (built, must land, on the line,
+out of the bar, after). Cards open the same note panel. State is derived like
+the User path tab; the tab appears only when a note carries `column`. Schema in
+[`references/note-schema.md`](references/note-schema.md).
+
 Otherwise the page is four tabs — **Roadmap**, **Schedule**, **Open questions**,
 **Risks** — and each one only exists when the notes have filled it. Schedule
 sits directly after the map because "what blocks what" and "when" are read

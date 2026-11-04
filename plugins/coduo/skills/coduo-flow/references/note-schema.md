@@ -440,3 +440,33 @@ With a `path` block in `flow.json` (`steps` and `areas`, each a list of `{id, na
 with `step` and `area` is a topic card on the first tab. `phase: decide` puts it on the line
 and `phase: later` parks it. A step may set `loops_to: [step-id]`, and `path.tab` renames the tab. Path notes skip the 24-character `node` limit. Its `epics` supply the ticket counts.
 `domains: [code]` tags a topic for the category filter when it has no question or risk to carry it.
+
+## Swimlanes fields
+
+A `swimlanes` block in `flow.json` adds the **Swimlanes** tab:
+
+```json
+"swimlanes": {
+  "tab": "Swimlanes",
+  "columns": [{"id": "built", "name": "Built"}, {"id": "must", "name": "Must land"},
+              {"id": "secondary", "name": "Out of the bar"}, {"id": "after", "name": "After"}],
+  "line": "secondary",
+  "rows": [{"id": "app", "name": "App", "note": "One line on where the row stands."}]
+}
+```
+
+- `columns` (required) are the column vocabulary, in order. `line` is optional: the
+  id of the column whose left edge carries the dashed line; columns before it count
+  as inside the line in the tally.
+- `rows` are optional when a `path` block exists: they default to `path.areas`.
+  `note` is the grey line under the row name.
+- A note sits in the row named by its existing `area` and the column named by a new
+  `column` field. A note without `column` is not on this tab.
+- Card state is derived as on the User path tab: `phase: later` is later,
+  `phase: decide` is undecided, a done status or a closed epic is built, else left. A
+  left card with no `epics` reads "no ticket".
+- With a `path` block the path's steps run along the top, each with its left and open
+  counts; clicking a step dims the cards that sit in other steps.
+- `check_flow.py` fails a `column` or `area` not declared in the block, a `column` with
+  no `area`, a `column` with no `swimlanes` block, duplicate or unnamed ids, and a
+  `line` that is not a column. Maps without the block build exactly as before.
