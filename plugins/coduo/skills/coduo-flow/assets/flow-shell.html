@@ -396,6 +396,26 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--rule);font-si
 footer a{color:var(--s-screen);cursor:pointer}
 @media (max-width:760px){.wrap{padding:32px 18px 52px}.full{margin:0 -18px}
   .scroller{padding:14px 18px 18px}#body{padding:20px 18px 52px}.standfirst{font-size:17px}}
+
+/* User path tab */
+.pcount{font:13px var(--font-ui);color:var(--fg-2);align-self:center}
+.pcount b{color:var(--fg);font-size:15px}
+.pscroll{overflow:auto;max-height:calc(100vh - 110px);padding-top:0}
+.phead{position:sticky;top:0;z-index:3;background:var(--card);width:max-content}
+.pbody{position:relative;width:max-content}
+.plane{position:absolute;left:0;width:100%;pointer-events:none;z-index:2}
+.plabel{position:sticky;top:var(--phead);left:0;width:max-content;padding:6px 10px 6px 8px;border-radius:0 0 8px 0;
+  background:var(--card);white-space:nowrap;font:12px/1.3 var(--font-ui)}
+.plabel b{color:var(--fg);font-weight:600}
+.plabel small{color:var(--fg-2);margin-left:6px;font-size:12px}
+.pband{fill:none;stroke:var(--rule)}
+.prail{stroke:var(--edge);stroke-width:1;stroke-dasharray:2 5;fill:none;opacity:.6}
+.ptrack{fill:var(--rule)}
+.pq{font:700 15px var(--font-ui)}
+.pt-later{opacity:.7}
+#tab-path .full{width:100vw;margin-left:calc(50% - 50vw);margin-right:0}
+#tab-path .node.dim{opacity:.4}
+#tab-path .node.dim rect{stroke-opacity:.12}
 </style>
 </head>
 <body>
@@ -418,6 +438,7 @@ footer a{color:var(--s-screen);cursor:pointer}
 
 {{TABNAV}}
 
+{{PATH}}
   <section class="tabpanel" id="tab-roadmap" role="tabpanel" aria-labelledby="tb-roadmap">
     <div class="map-controls">{{MAPCONTROLS}}</div>
     <div class="full">
@@ -587,12 +608,12 @@ footer a{color:var(--s-screen);cursor:pointer}
       // the graph and still worth clicking, it just should not shout.
       var map = panel.querySelector('[data-dimmable]')
       if (map) {
-        var cats = groups.filter(function (g) { return g.key === 'cats' })[0]
         var done = groups.filter(function (g) { return g.key === 'done' })[0]
+        var attrs = groups.filter(function (g) { return g.key !== 'done' && g.on.length })
         ;[].slice.call(map.querySelectorAll('.node')).forEach(function (g) {
-          var have = (g.getAttribute('data-cats') || '').split(' ')
-          var offCat = cats && cats.on.length && !cats.on.some(function (v) {
-            return have.indexOf(v) > -1
+          var offCat = attrs.some(function (a) {
+            var have = (g.getAttribute('data-' + a.key) || '').split(' ')
+            return !a.on.some(function (v) { return have.indexOf(v) > -1 })
           })
           var offDone = done && done.on.length && g.getAttribute('data-done') === '1'
           g.classList.toggle('dim', !!(offCat || offDone))

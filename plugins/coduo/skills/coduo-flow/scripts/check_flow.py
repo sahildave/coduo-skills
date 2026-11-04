@@ -231,7 +231,7 @@ def main(flow_dir):
                  % (name, fm["executor"], "|".join(EXECUTORS)))
         if fm.get("status") and fm["status"] not in STATUSES:
             fail('%s: status "%s" not in %s' % (name, fm["status"], "|".join(STATUSES)))
-        if fm.get("node") and len(fm["node"]) > NODE_MAX:
+        if fm.get("node") and not fm.get("step") and len(fm["node"]) > NODE_MAX:
             fail('%s: node "%s" is %d chars; the card fits %d'
                  % (name, fm["node"], len(fm["node"]), NODE_MAX))
         if fm.get("summary") and len(fm["summary"]) > 300:

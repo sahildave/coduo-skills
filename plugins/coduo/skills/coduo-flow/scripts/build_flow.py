@@ -228,6 +228,8 @@ def load(flow_dir):
             "questions": [parse_question(q) for q in fm.get("questions", []) or []],
             "loops": fm.get("loops_to", []) or [],
             "executor": (fm.get("executor") or "").strip().lower(),
+            "step": str(fm.get("step") or ""), "area": str(fm.get("area") or ""),
+            "phase": str(fm.get("phase") or "now"), "domains": fm.get("domains") or [],
             "epics": epics_of(name, fm),
             "epic_infos": [epics.get(str(e)) or {} for e in epics_of(name, fm)],
             "start": _int(fm.get("start")),
@@ -298,7 +300,7 @@ def build(flow_dir):
     # tagged twice: if a note's open work is all DevOps, the node is DevOps.
     done_statuses = set(cfg.get("doneStatuses") or ["validated"])
     for n in notes:
-        cats = []
+        cats = list(n["domains"])
         for item in list(n["questions"]) + list(n["risks"]):
             for c in item.get("cats") or []:
                 if c not in cats:
@@ -854,6 +856,188 @@ def render_quick(notes, open_q, unmit):
         for key, n, label, sub in lines))
 
 
+P_W, P_H, P_PITCH, P_LANE, P_TOP, P_STEP_H = 196, 74, 232, 8, 60, 66
+
+
+def path_tickets(n):
+    """A topic's tickets: each epic's sub-issues, or the issue itself when it
+    has none, so a lone ticket on a card still counts as one."""
+    seen = {}
+    for num, info in zip(n["epics"], n["epic_infos"]):
+        subs = info.get("subIssues") or []
+        for t in subs or [{"number": num, "state": info.get("state", "open")}]:
+            seen[t["number"]] = t["state"]
+    n["open_ids"] = {num for num, state in seen.items() if state == "open"}
+    return len(n["open_ids"]), len(seen)
+
+
+def path_state(n):
+    if n["phase"] == "later":
+        return "later"
+    if n["phase"] == "decide":
+        return "decide"
+    return "done" if n["done"] else "left"
+
+
+def path_count(topics):
+    """Topics left, and open tickets once each: one ticket can sit on several topics."""
+    left = sum(1 for t in topics if t["pstate"] in ("left", "decide"))
+    return left, len(set().union(*[t["open_ids"] for t in topics if t["pstate"] != "later"] or [set()]))
+
+
+def wrap_label(text, width=24):
+    lines, cur = [], ""
+    for word in text.split():
+        if cur and len(cur) + 1 + len(word) > width:
+            lines.append(cur)
+            cur = word
+        else:
+            cur = (cur + " " + word).strip()
+    lines.append(cur)
+    if len(lines) > 2:
+        lines = [lines[0], " ".join(lines[1:])[:width - 1] + "…"]
+    return lines
+
+
+def path_card(n, x, y):
+    """A topic in the Roadmap's own card, so both tabs read as one chart. State
+    is carried by mark and words as well as colour."""
+    state = n["pstate"]
+    gap = not n["epics"] and state in ("left", "decide")
+    fill, stroke = {"done": ("var(--n-end)", "var(--s-end)"), "left": ("var(--n-dec)", "var(--s-dec)"),
+                    "decide": ("var(--n-gate)", "var(--s-gate)"),
+                    "later": ("var(--n-state)", "var(--s-state)")}[state]
+    if gap:
+        fill, stroke = "var(--n-rec)", "var(--s-rec)"
+    dash = ' stroke-dasharray="6 4"' if gap or state == "decide" else ""
+    word = {"done": "Built", "left": "Left", "decide": "Undecided", "later": "Later"}[state]
+    if n["epics"]:
+        count = "%d open of %d" % (n["open"], n["total"]) if n["open"] else "%d closed" % n["total"]
+    else:
+        count = "no ticket" if gap else ""
+    caption = " · ".join(x_ for x_ in (word, count) if x_)
+    mx, my = x + P_W - 14, y + 14
+    if state == "done":
+        mark = node_mark("tick", "var(--tag-live)", mx, my)
+    elif state == "decide":
+        mark = '<text class="pq" x="%d" y="%d" text-anchor="middle" fill="%s">?</text>' % (mx, my + 4, stroke)
+    elif state == "later":
+        mark = ""
+    else:
+        mark = node_mark("dot", stroke, mx, my)
+    label = wrap_label(n["node"])
+    top = y + (24 if len(label) == 2 else 31)
+    text = "".join('<text class="nl" x="%d" y="%d">%s</text>' % (x + 12, top + i * 16, esc(l))
+                   for i, l in enumerate(label))
+    return ('<g class="node pt-%s" data-note="%s" data-cats="%s" data-done="%s" data-pstate="%s" tabindex="0" role="button" aria-label="Open %s, %s">'
+            '<rect x="%d" y="%d" width="%d" height="%d" rx="13" fill="%s" stroke="%s" stroke-width="1.5"%s/>'
+            '%s%s<text class="ns" x="%d" y="%d">%s</text></g>'
+            % (state, esc(n["id"]), " ".join(n.get("cats") or ["none"]),
+               "1" if state == "done" else "0", state + (" gap" if gap else ""),
+               esc(n["title"]), esc(caption), x, y, P_W, P_H, fill, stroke,
+               dash, mark, text, x + 12, y + P_H - 11, esc(caption)))
+
+
+def render_path(cfg, notes):
+    """The first tab: the user's path as the top row of the flowchart, areas as
+    its lanes, each topic a card in the step it serves. Same cards and edges as
+    the Roadmap, and everything is derived from the notes and epics.json."""
+    path = cfg.get("path") or {}
+    steps, areas = path.get("steps") or [], path.get("areas") or []
+    if not steps:
+        return ""
+    topics = [n for n in notes if n["step"]]
+    step_ids = {s["id"] for s in steps}
+    area_ids = {a["id"] for a in areas}
+    for n in topics:
+        n["open"], n["total"] = path_tickets(n)
+        n["pstate"] = path_state(n)
+        if n["step"] not in step_ids or n["area"] not in area_ids:
+            die("%s: step or area is not in flow.json's path" % n["file"])
+
+    col = {s["id"]: P_LANE + i * P_PITCH for i, s in enumerate(steps)}
+    y = 0
+    svg, lanes, cards = [], [], []
+    for a in areas:
+        mine = [n for n in topics if n["area"] == a["id"]]
+        cells = {}
+        for n in mine:
+            cells.setdefault(n["step"], []).append(n)
+        rows = max([len(c) for c in cells.values()] or [1])
+        h = rows * (P_H + 10) + 36
+        left, tickets = path_count(mine)
+        svg.append('<rect class="pband" x="0" y="%d" width="%d" height="%d"/>'
+                   % (y, P_LANE + len(steps) * P_PITCH, h))
+        lanes.append('<div class="plane" style="top:%dpx;height:%dpx"><div class="plabel"><b>%s</b><small>%d left · %d open</small></div></div>'
+                     % (y, h, esc(a["name"]), left, tickets))
+        for sid, cell in cells.items():
+            for j, n in enumerate(cell):
+                cards.append(path_card(n, col[sid], y + 30 + j * (P_H + 10)))
+        y += h
+    height = y
+    width = P_LANE + len(steps) * P_PITCH
+
+    rails, edges, nodes = [], [], []
+    mid = P_TOP + P_STEP_H / 2
+    for i, s in enumerate(steps):
+        x = col[s["id"]]
+        mine = [n for n in topics if n["step"] == s["id"]]
+        left, tickets = path_count(mine)
+        live = [n for n in mine if n["pstate"] != "later"]
+        done = sum(1 for n in live if n["pstate"] == "done")
+        rails.append('<path class="prail" d="M%d 0 V%d"/>' % (x + P_W // 2, y))
+        if i < len(steps) - 1:
+            x1, x2 = x + P_W, x + P_PITCH
+            edges.append('<path d="M%d %g L%d %g" fill="none" stroke="var(--s-end)" stroke-width="2.2" '
+                         'marker-end="url(#pahc)"/>' % (x1, mid, x2 - 3, mid))
+        for target in s.get("loops_to") or []:
+            x1, x2 = x + P_W // 2, col[target] + P_W // 2
+            edges.append('<path d="M%d %d C%d %d %d %d %d %d" fill="none" stroke="var(--s-state)" '
+                         'stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#pahl)"/>'
+                         % (x1, P_TOP, x1, P_TOP - 44, x2, P_TOP - 44, x2, P_TOP - 3))
+        fill, stroke = ("var(--n-end)", "var(--s-end)") if not left else ("var(--n-screen)", "var(--s-screen)")
+        share = done / len(live) if live else 0
+        nodes.append(
+            '<g class="pstep"><rect x="%d" y="%d" width="%d" height="%d" rx="13" fill="%s" stroke="%s" stroke-width="1.5"/>'
+            '<text class="nl" x="%d" y="%d">%s</text><text class="ns" x="%d" y="%d">%s</text>'
+            '<rect class="ptrack" x="%d" y="%d" width="%d" height="4" rx="2"/>'
+            '<rect x="%d" y="%d" width="%d" height="4" rx="2" fill="var(--s-end)"/></g>'
+            % (x, P_TOP, P_W, P_STEP_H, fill, stroke, x + 12, P_TOP + 24, esc(s["name"]),
+               x + 12, P_TOP + 42, "%d left · %d open" % (left, tickets) if left else "Clear · %d open" % tickets,
+               x + 12, P_TOP + 52, P_W - 24, x + 12, P_TOP + 52, int((P_W - 24) * share)))
+
+    def marker(mid_, colour):
+        return ('<marker id="%s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">'
+                '<path d="M0 0l10 5-10 5z" fill="%s"/></marker>' % (mid_, colour))
+
+    head_h = P_TOP + P_STEP_H + 12
+    head = ('<svg viewBox="0 0 %d %d" width="%d" height="%d" role="img" aria-label="User path steps">'
+            '<defs>%s%s</defs>%s</svg>'
+            % (width, head_h, width, head_h, marker("pahc", "var(--s-end)"),
+               marker("pahl", "var(--s-state)"), "".join(edges + nodes)))
+    chart = ('<svg viewBox="0 0 %d %d" width="%d" height="%d" role="img" aria-label="Topics by area">%s</svg>'
+             % (width, height, width, height, "".join(svg + rails + cards)))
+    keys = [("done", "built"), ("left", "left"), ("decide", "undecided"), ("later", "later")]
+    gaps = sum(1 for n in topics if not n["epics"] and n["pstate"] in ("left", "decide"))
+    opts = [("", "All")] + [(k, "%d %s" % (sum(1 for n in topics if n["pstate"] == k), l)) for k, l in keys]
+    opts.append(("gap", "%d no ticket" % gaps))
+    bars = filterbar("pstate", opts, "Status")
+    cats = cat_options(topics)
+    if cats:
+        bars += filterbar("cats", cats, "Domain")
+    bars += ('<div class="filterbar" data-group="done" data-multi="1"><span class="flabel">Shipped</span>'
+             '<button type="button" class="chip" data-filter="done" data-value="done" '
+             'aria-pressed="false">Dim what is built</button></div>')
+    tickets = '<span class="pcount"><b>%d</b> open tickets</span>' % path_count(topics)[1]
+    return "\n".join([
+        '  <section class="tabpanel" id="tab-path" role="tabpanel" aria-labelledby="tb-path">',
+        '<div class="map-controls"><div class="map-bars">%s%s</div></div>' % (bars, tickets),
+        '<div class="full"><div class="scroller pscroll" tabindex="0" role="region" '
+        'aria-label="User path, scrollable" data-dimmable><div class="phead">%s</div>'
+        '<div class="pbody" style="--phead:%dpx">%s%s</div></div></div>' % (head, head_h, "".join(lanes), chart),
+        "  </section>"])
+
+
 def render_tabnav(panels):
     """One tab is not a tab bar — a flow with no timeline, no risks and no open
     questions is still just a map, and should look like one."""
@@ -1002,6 +1186,8 @@ def main():
     tally = [("%d" % len(drawn), cfg.get("nodeWord", "notes")),
              ("%d" % len(edges), "dependencies"),
              ("%d" % len(layers), "layers")]
+    if cfg.get("path") and not edges:
+        tally = tally[:1]
     tally += [(str(t.get("value")), t.get("label", "")) for t in cfg.get("tally", [])]
     tally_html = "".join("<li><b>%s</b> %s</li>" % (esc(v), esc(l)) for v, l in tally)
 
@@ -1028,8 +1214,10 @@ def main():
     # are read together — a reader who has just seen the graph wants the dates
     # next, not the open questions. Questions and risks are the detail behind
     # both and follow them.
+    path_html = render_path(cfg, notes)
     panels = [
-        ("roadmap", cfg.get("roadmapTab", "Roadmap"), True, 0),
+        ("path", (cfg.get("path") or {}).get("tab", "User path"), bool(path_html), 0),
+        ("roadmap", cfg.get("roadmapTab", "Roadmap"), bool(edges) or not path_html, 0),
         ("schedule", ((cfg.get("timeline") or {}).get("tab", "Schedule")), bool(gantt_html), 0),
         ("questions", (cfg.get("questions") or {}).get("tab", "Open questions"),
          bool(questions_html), open_q),
@@ -1038,6 +1226,8 @@ def main():
     tabnav = render_tabnav(panels)
 
     out = flowio.read_text(SHELL)
+    if path_html:
+        out = out.replace('aria-labelledby="tb-roadmap">', 'aria-labelledby="tb-roadmap" hidden>')
     for key, val in {
         "TITLE": esc(cfg.get("title", "Flow map")),
         "KICKER": esc(cfg.get("kicker", "")) + synced_stamp(cfg.get("_epicsGenerated")),
@@ -1053,6 +1243,7 @@ def main():
         "NOTES": "\n".join(note_article(n) for n in notes),
         "SEARCH": search,
         "GANTT": gantt_html,
+        "PATH": path_html,
         "FONTS": ('<link rel="preconnect" href="https://fonts.googleapis.com">\n'
                   '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
                   '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'

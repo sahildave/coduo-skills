@@ -433,3 +433,10 @@ clicking a card opens it instantly and search covers all of them.
 
 Regenerate rather than edit — a change made in the HTML disappears at the next
 build.
+
+## User path fields
+
+With a `path` block in `flow.json` (`steps` and `areas`, each a list of `{id, name}`), a note
+with `step` and `area` is a topic card on the first tab. `phase: decide` puts it on the line
+and `phase: later` parks it. A step may set `loops_to: [step-id]`, and `path.tab` renames the tab. Path notes skip the 24-character `node` limit. Its `epics` supply the ticket counts.
+`domains: [code]` tags a topic for the category filter when it has no question or risk to carry it.

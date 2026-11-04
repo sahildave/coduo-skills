@@ -90,7 +90,13 @@ the pieces, what rests on what, and what did the people who did this actually
 conclude. That last one is why every card opens its note. A diagram with no
 reasoning behind it is a picture of a conversation, not a record of one.
 
-The page is four tabs — **Roadmap**, **Schedule**, **Open questions**,
+A `path` block in `flow.json` adds a first tab, **User path**: the user's steps
+as a flowchart, areas as swimlanes, each topic a card with its open tickets, and
+status and domain filters that dim. Start here on a new product; schema in
+[`references/note-schema.md`](references/note-schema.md). Path cards carry
+`data-note="<id>"` rather than `node-<id>`.
+
+Otherwise the page is four tabs — **Roadmap**, **Schedule**, **Open questions**,
 **Risks** — and each one only exists when the notes have filled it. Schedule
 sits directly after the map because "what blocks what" and "when" are read
 together. The first
