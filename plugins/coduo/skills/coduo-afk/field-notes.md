@@ -6,8 +6,16 @@ launch rules and the PR-comment-not-body rule; this file holds everything else.
 
 ## Launching a run
 
+- **A Mac app lane verifies UI in Atlas, not on the owner's desktop.** If `atlas doctor`
+  reports `ready`, the brief tells the lane to open its build in Atlas's hidden helper login
+  (`atlas open`, `atlas move`/`click`/`key`, `atlas screenshot`; the `atlas` skill) and to
+  end with `atlas cleanup --apply`. Lanes share one helper and Atlas queues their input, so
+  many UI lanes run slower, but none touches the owner's mouse. The one check it cannot do
+  is a drag-and-drop between apps (`coduo-mac-drag`, human desk only). Without Atlas, the
+  next note applies.
 - **Say at launch when a lane will drive the screen, and make sure it lets go.** A lane
-  whose ticket changes a screen proves it with screenshots, and on a desktop app that means
+  whose ticket changes a screen proves it with screenshots, and on a desktop app without
+  Atlas that means
   `agent-device` running an XCUITest runner that takes over the owner's mouse and windows.
   On atlas #1012 (2026-10-03) it started mid-run with no warning and the owner thought their
   screens had been hijacked. Automation is allowed; the surprise is not. In the launch
@@ -228,6 +236,7 @@ Three things, in this order:
   command-line grep. The builder reads the exit code and the guidance together. Either half
   alone fails: a kill without queued guidance gets misread as a gate failure; guidance
   without the kill never arrives.
+- **A herdr lane in a repo whose main checkout Claude Code has never trusted stops at the trust dialog** (`agent_not_ready`, then `agent_name_taken`; gitsu-tools#1, 2026-11-12); trusting `~/code/worktrees` does not cover it, so the runner now writes `projects[<lane worktree>].hasTrustDialogAccepted` before `herdr agent start` (coduo-afk `trustWorkspace`).
 
 ## Reviews and closeouts
 

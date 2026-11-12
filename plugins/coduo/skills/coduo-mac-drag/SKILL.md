@@ -1,11 +1,17 @@
 ---
 name: coduo-mac-drag
-description: Drive a real cross-app drag-and-drop on macOS with the real mouse, e.g. pick up a link in Safari and drop it on another app's window. Use to verify a Mac app's drop target, notch or drop-zone UI, or any drag between two apps. In-app drags belong to XCUITest or snapshot tests instead.
+description: Drive a real cross-app drag-and-drop on macOS with the real mouse, e.g. pick up a link in Safari and drop it on another app's window. Use only to verify a Mac app's drop target, notch or drop-zone UI, or any drag between two apps — the one Mac UI check Atlas cannot do. Every other Mac UI check (clicks, hover, pointer moves, window drags, screenshots) goes to Atlas so the owner's mouse stays free. In-app drags belong to XCUITest or snapshot tests instead.
 ---
 
 # coduo-mac-drag
 
 `macdrag` posts real mouse events (CGEvent) so macOS starts a genuine `NSDraggingSession` in the source app and delivers it to the target app, exactly as a human drag would. The proof of a drop is the target app's unified log, not the driver's exit code.
+
+## Atlas first
+
+If `atlas doctor` reports `ready`, do every Mac UI check you can in Atlas's hidden helper login (the `atlas` skill): open the build with `atlas open`, then `atlas move`, `click`, `drag`, `key` and `screenshot`. It never touches the owner's pointer, so it is safe in an AFK lane. `atlas move` posts real moves: a global `NSEvent` mouse monitor sees them, so screen-edge and hot-corner triggers are testable there (measured 2026-11-12: an edge-dwell trigger opened, closed on Escape, and reopened on a second move).
+
+Atlas cannot start a drag-and-drop between apps: its docs say macOS begins one only from a real mouse, and `atlas drag` only moves windows, sliders and text selections. That drop is what this skill is for. Everything below takes over the real mouse.
 
 ## Before you drag
 
@@ -74,4 +80,4 @@ Exit codes: 0 released, 1 usage or no window, 2 safety abort (wrong window on to
 
 ## Why not an existing tool
 
-Measured on 6 Oct 2026, Safari link onto the bundled drop target: `cliclick` 5.1 dropped 2 of 11 (`dd:`/`dm:`/`du:`, with or without a scripted wiggle). Peekaboo 4.5 `drag` dropped 7 of 7, but it is a 75 MB install needing macOS 15, and has no hold before release, mid-hover screenshot, waypoints or start-window safety check. `agent-device` keeps gestures inside the session app's window, and XCUITest's `press(forDuration:thenDragTo:)` needs a UI-test target in the app under test. If Peekaboo is already installed, `peekaboo drag --from x,y --to x,y --duration 1500 --foreground` works for a plain straight drag.
+Measured on 6 Oct 2026, Safari link onto the bundled drop target: `cliclick` 5.1 dropped 2 of 11 (`dd:`/`dm:`/`du:`, with or without a scripted wiggle). Peekaboo 4.5 `drag` dropped 7 of 7, but it is a 75 MB install needing macOS 15, and has no hold before release, mid-hover screenshot, waypoints or start-window safety check. Atlas cannot start a cross-app drop (see Atlas first). `agent-device` keeps gestures inside the session app's window, and XCUITest's `press(forDuration:thenDragTo:)` needs a UI-test target in the app under test. If Peekaboo is already installed, `peekaboo drag --from x,y --to x,y --duration 1500 --foreground` works for a plain straight drag.
