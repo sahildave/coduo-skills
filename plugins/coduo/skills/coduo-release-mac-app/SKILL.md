@@ -23,6 +23,12 @@ Read the project's release script and `AGENTS.md` first; they bind every `<name>
 9. **Verify the draft, then publish.** Download the DMG on a Mac that never saw the app and open it: Gatekeeper's verdict on a quarantined copy is the one that counts. Confirm the DMG and `.sig` are attached, then `gh release edit <tag> --draft=false`.
 10. **Verify the published feed.** From the site, the download route answers a 302 to a `.dmg`, and the update feed called with an older version returns the new one with its signature (`curl -sS -o /dev/null -w '%{http_code} %{redirect_url}'`, print the status and file name, never the signed query). Done when both answer and a build one version behind sees the update.
 
+## Sparkle on a coduo.co site
+
+- **`SPARKLE_BIN`** points the release script at the folder holding `generate_appcast` and `sign_update` when they are not on `PATH` (Mico's `scripts/release-mac.sh`; Sparkle's SPM checkout keeps them under `SourcePackages/artifacts/sparkle/Sparkle/bin`). The script dies naming the variable, not after notarizing.
+- **The feed URL in the app is on www**: `SUFeedURL` = `https://www.coduo.co/<slug>/appcast.xml`. Bare `coduo.co` answers a 308, and a feed fetch that follows it is one more hop that can fail.
+- **Never remove a feed route an installed app reads.** The URL baked into shipped builds is the update channel; delete or rename the route (a product renamed, a site moved from Vercel to a Worker) and every installed copy stops seeing updates, silently. Keep the old path answering, or redirect it to the new feed, for as long as any shipped build carries it.
+
 ## The site's read token
 
 The download route and feed read the private repo's Releases with `<APP>_RELEASE_READ_TOKEN` (a fine-grained token, `contents: read` on that one repo, nothing else) and `<APP>_RELEASE_REPOSITORY` (`owner/repo`). Both live in the secret store and reach the Worker or site through the deploy's env compose step, never a provider dashboard. A preview or staging deploy may hold the same read-only value as production. Missing, the route answers 503 (or 500) naming the missing key: set both in the store for every environment that serves downloads, redeploy that environment, repeat step 10.
