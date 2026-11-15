@@ -127,6 +127,15 @@ Contents:
   then accept. On a closed epic use `afk close --redo <n>`. `afk verify` does not count.
 - **`docs/progress.md` conflicts on every second epic merge.** Each epic appends at the same
   spot. Merge the base into the branch keeping every block before handing over the merge.
+- **Batch every closeout fix into one commit before you relaunch.** Any commit an
+  Orchestrator or its sub-agent makes on the epic branch makes the next relaunch re-run the
+  full baseline (about 15 minutes on github-projects). The runner skips the baseline only for
+  a relaunch at the same head, after its own status and sweep commits, after task merges that
+  passed integration, or after a closeout fix gate it ran itself (coduo-afk #145, #176 W2,
+  #223). #176 W3 skips only the Rust checks when no Rust path changed. A hand commit matches
+  none of these. Epic #1438 (2026-11-15) paid the baseline twice, for an e2e test fix and then
+  the closeout must-fix pass. Collect the test fix and every closeout fix, commit once,
+  relaunch once.
 - **Resolve every merge conflict with `/resolving-merge-conflicts`**, and name the skill in
   any merge brief. A brief that did not name it got hand-rolled text surgery.
 
