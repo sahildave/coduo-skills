@@ -74,6 +74,7 @@ To turn them on for one project only, commit this to the project's `.claude/sett
 **Building**
 
 - `coduo-implement` — implement a spec or tickets with fidelity checks: experience criteria first, every stub finished or ticketed, verification shown, not described.
+- `coduo-no-comments` — prune the comments a change adds, and turn the ones hiding a workaround or a policy into code. The last build step of `coduo-implement`. Adapted from [pstack's no-comments](https://github.com/cursor/plugins/tree/main/pstack/skills/no-comments).
 - `coduo-tasks` — write a `tasks/` folder for an overnight run with no tracker and no PRs.
 - `coduo-housekeeping` — close shipped-but-open tickets, file untracked work, and route what is left to an agent or a person.
 - `coduo-debate` — settle a plan or diagnosis by debating it with an independent sub-agent until you agree.
