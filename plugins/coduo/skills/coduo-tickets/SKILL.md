@@ -217,7 +217,7 @@ Four rules follow, and they are where a night's work is won or lost:
   adds or touches (for `xcodebuild`, `-only-testing:<Target>/<Suite>` placed
   before `test`), or the platform's whole-suite command goes in a
   `## Platform gate` section outside the criteria and a criterion reads "the
-  gate in `## Platform gate` passes and its summary is pasted".
+  gate in `## Platform gate` passes".
 - **A ticket may not prohibit the file its own mechanism lands in.** For each
   change the body prescribes, name the file it physically lands in and check it
   against `## Prohibited`; a fence that covers it sends the lane into a
@@ -393,7 +393,17 @@ An acceptance criterion has to be satisfiable **by a builder in a lane**, and
   can satisfy — and a test file the chain never names is a file the gate never
   runs, which the runner now reports as a human action item.
 
-Two more the validator cannot read, so they are yours:
+More the validator cannot read, so they are yours:
+
+- **Evidence a criterion asks for is a committed file on the branch** (a test, a
+  fixture, a doc), never the lane report, the PR body or pasted output: closeout
+  reads the branch, so a criterion citing anything else ends `unknown` every run.
+- **A criterion that needs a live service, a secret, hardware or the owner goes
+  on the epic's `gate: after` ticket**, not on a lane ticket. A lane cannot meet
+  it, so it ends `unknown` every run and makes a must-fix structural.
+- **A criterion that names a command names one a gate runs**: check
+  `defaultChecks` / `integrationChecks` in `.afk-setup/config.yaml`, or the
+  ticket's `checks:`. A command no gate runs is never verified.
 
 - **A criterion asserts a presence.** `grep … prints nothing` passes when the
   task shipped nothing — three quillnote tasks did, green.

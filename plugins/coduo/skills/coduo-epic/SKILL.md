@@ -54,6 +54,10 @@ Two overrides on it, both because the runner reads GitHub and nothing else:
 Confirm the seams with the user as `/to-spec` requires. That conversation is the
 cheapest place this epic will ever be corrected.
 
+**A UI epic names the existing prototype** (path or branch) its tickets are built
+against. With none, stop and build one first (`coduo-product-prototype`); the
+ruling is `coduo-swiftui-factory` `docs/starter-kit/decisions/prototypes-run-on-the-real-shell.md`.
+
 **Scope to a polished MVP.** Each user story and requirement earns its place as a
 main path a normal user walks, a launch blocker or a real bug, and those are
 written to a finished standard. Hardening, refactors, premature optimization and
