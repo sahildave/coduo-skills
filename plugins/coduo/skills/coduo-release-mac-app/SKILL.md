@@ -28,6 +28,8 @@ Read the project's release script and `AGENTS.md` first; they bind every `<name>
 - **`SPARKLE_BIN`** points the release script at the folder holding `generate_appcast` and `sign_update` when they are not on `PATH` (Mico's `scripts/release-mac.sh`; Sparkle's SPM checkout keeps them under `SourcePackages/artifacts/sparkle/Sparkle/bin`). The script dies naming the variable, not after notarizing.
 - **The feed URL in the app is on www**: `SUFeedURL` = `https://www.coduo.co/<slug>/appcast.xml`. Bare `coduo.co` answers a 308, and a feed fetch that follows it is one more hop that can fail.
 - **Never remove a feed route an installed app reads.** The URL baked into shipped builds is the update channel; delete or rename the route (a product renamed, a site moved from Vercel to a Worker) and every installed copy stops seeing updates, silently. Keep the old path answering, or redirect it to the new feed, for as long as any shipped build carries it.
+- **Watch the feed URL.** On a product's first release, add `https://www.coduo.co/<slug>/appcast.xml` to a free uptime monitor with email alerts. That one URL exercises Vercel, the release-read token and GitHub, and a broken feed fails silently.
+- **A fix for a broken build ships as a critical update.** Mark it in the appcast item with `<sparkle:criticalUpdate/>` so Sparkle won't let users skip it, and set `sparkle:minimumAutoupdateVersion` only when older builds cannot update straight to the new one.
 
 ## The site's read token
 
