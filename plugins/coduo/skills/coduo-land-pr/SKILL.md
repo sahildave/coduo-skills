@@ -139,6 +139,18 @@ git push origin --delete <head>        # skip if the remote branch is already go
   holding `CACHEDIR.TAG`, which cargo writes into every target dir) →
   `du -sh` it, `rm -rf <parent>`, and put the size in the report. Any other
   entry → leave `<parent>` and name what is in it.
+- **Xcode DerivedData goes with the worktree.** Xcode builds into
+  `~/Library/Developer/Xcode/DerivedData/<App>-<hash>`, one folder per checkout
+  path (2–5 GB each), and nothing else ever deletes it. Each folder's
+  `info.plist` names the checkout in `WorkspacePath`. Once the worktree is gone,
+  delete the folders that point into it and put the size in the report:
+
+  ```bash
+  for d in ~/Library/Developer/Xcode/DerivedData/*/; do
+    wp=$(/usr/libexec/PlistBuddy -c 'Print :WorkspacePath' "$d/info.plist" 2>/dev/null) || continue
+    case "$wp" in "<worktree>"/*) du -sh "$d"; rm -rf "$d" ;; esac
+  done
+  ```
 - **AFK epic runs** keep their worktree at `~/.afk-claude/epics/<slug>-<id>/<repo>`,
   so `<slug>-<id>` is that parent. Check whether `afk finish` already removed
   it; when it is still there, remove the worktree and the parent here.
@@ -206,8 +218,17 @@ A hit is **live** when its parent sits inside a checkout (a repo's own
 `../.atlas-target`). The loop skips both and prints each **orphan**'s parent
 with its size; show them as their own table after the branches.
 
+DerivedData folders whose checkout no longer exists are orphans too:
+
+```bash
+for d in ~/Library/Developer/Xcode/DerivedData/*/; do
+  wp=$(/usr/libexec/PlistBuddy -c 'Print :WorkspacePath' "$d/info.plist" 2>/dev/null) || continue
+  [ -e "$wp" ] || du -sh "$d"
+done
+```
+
 Show the tables and wait. Once approved, run Step 4 for each merged-dead branch,
-and `rm -rf` each orphan's parent folder.
+and `rm -rf` each orphan's parent folder and each orphaned DerivedData folder.
 Then check that the branches still standing are exactly the keep list and that
 `git log --oneline origin/<base> -5` still shows the merges. Report what was
 deleted, what was kept and why, and which PRs you propose.
