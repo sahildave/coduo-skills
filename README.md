@@ -27,7 +27,7 @@ This repo is a Claude Code plugin marketplace with two plugins:
 
 | Plugin | What it is |
 |---|---|
-| `coduo` | The 28 skills below, hosted here |
+| `coduo` | The 30 skills below, hosted here |
 | `mattpocock-skills` | Uses as base [Matt Pocock's engineering skills](https://github.com/mattpocock/skills), installed from upstream. `coduo-epic`, `coduo-tickets` and `coduo-implement` wrap his `to-spec`, `to-tickets` and `implement`, and the coduo-afk closeout review runs his `code-review`. Revondered to allow agents allow model invocation |
 
 ## Install
@@ -77,6 +77,7 @@ To turn them on for one project only, commit this to the project's `.claude/sett
 - `coduo-no-comments` — prune the comments a change adds, and turn the ones hiding a workaround or a policy into code. The last build step of `coduo-implement`. Adapted from [pstack's no-comments](https://github.com/cursor/plugins/tree/main/pstack/skills/no-comments).
 - `coduo-tasks` — write a `tasks/` folder for an overnight run with no tracker and no PRs.
 - `coduo-housekeeping` — close shipped-but-open tickets, file untracked work, and route what is left to an agent or a person.
+- `coduo-secret-paste` — have the owner paste a secret into Infisical (and Depot CI) from a real terminal, so no agent ever sees the value.
 - `coduo-debate` — settle a plan or diagnosis by debating it with an independent sub-agent until you agree.
 - `karpathy-guidelines` — baseline coding discipline: surgical changes, minimal solutions, stated assumptions, verifiable steps. Adapted from [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills).
 - `setup-coduo-toolchain` — install lint, format and type checks on the base branch so unattended lanes inherit them.
