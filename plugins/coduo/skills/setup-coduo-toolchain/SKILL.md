@@ -1,6 +1,6 @@
 ---
 name: setup-coduo-toolchain
-description: Provision a repo's lint / format / type toolchain on the base branch - install the dev dependencies and write the config (eslint.config.mjs, Prettier, tsconfig strictness + a typecheck script, .swiftlint.yml + swift-snapshot-testing, clippy/rustfmt) and an empty lessons home, keyed on the platform, idempotently and confirm-before-write. Use when the owner says "set up the toolchain", "wire up eslint/typescript here", "add linting/formatting to this repo", as the follow-up to setup-coduo-agents, or before an AFK run so lanes inherit deps they cannot install themselves.
+description: Provision a repo's lint / format / type toolchain on the base branch - install the dev dependencies and write the config (eslint.config.mjs, Prettier, tsconfig strictness + a typecheck script, .swiftlint.yml + swift-snapshot-testing, clippy/rustfmt, Flutter analyzer modes) and an empty lessons home, keyed on the platform, idempotently and confirm-before-write. Use when the owner says "set up the toolchain", "wire up eslint/typescript here", "add linting/formatting to this repo", as the follow-up to setup-coduo-agents, or before an AFK run so lanes inherit deps they cannot install themselves.
 disable-model-invocation: false
 ---
 
@@ -16,7 +16,8 @@ has already run: read the repo's `.claude/settings.json` for the
 `extraKnownMarketplaces` entry for `coduo-agents`. If it is absent, say so and
 offer to run `setup-coduo-agents` first - the two are ordered, because this
 skill installs the commands that the repo's `defaultChecks` will then name, and
-a toolchain wired into a repo with no agent context is half a setup.
+a toolchain wired into a repo with no agent context is half a setup. A platform
+with no marketplace plugin (Flutter) skips this precondition.
 
 Two invariants run through every step:
 
@@ -34,7 +35,7 @@ Two invariants run through every step:
 
 1. **Detect the platform.** Read `package.json` (deps + scripts), the lockfile,
    and top-level config files. Classify into exactly one: React web (Next.js /
-   Vite), React Native / Expo, SwiftUI / native Apple, Tauri, other. Read the
+   Vite), React Native / Expo, SwiftUI / native Apple, Tauri, Flutter (`pubspec.yaml`), other. Read the
    lockfile name to fix the package manager - `bun.lock`/`bun.lockb` → bun,
    `pnpm-lock.yaml` → pnpm, `package-lock.json` → npm, `yarn.lock` → yarn - and
    use it for every install command. Done when the platform and the package
@@ -93,6 +94,7 @@ truth for what that platform installs; the packages live nowhere else.
 | React Native / Expo | same two react eslint plugins + `@eslint-community/eslint-plugin-eslint-comments`; `@shadcn/lint` only if the repo uses NativeWind (Tailwind classes) | `eslint.config.mjs` (flat, no Next preset) + the core `complexity` rule on + `@shadcn/lint` registered (NativeWind only, zero rules enabled) + the ESLint lessons home; `tsconfig.json` `"strict": true` |
 | SwiftUI / native Apple | SwiftLint via the SwiftLintPlugins SPM dependency, run through its **command plugin** as an explicit check line (`swift package plugin --allow-writing-to-package-directory swiftlint lint Sources App`); `pointfreeco/swift-snapshot-testing` (`from: "1.18.0"`, product `SnapshotTesting` on the test target); `brew install swiftlint swiftformat` only for a local-only convenience; when the repo ships `scripts/design/` board renderers (factory design-conformance, mac recipe ≥ 1.9.0): `python3 -m pip install --user --break-system-packages playwright && python3 -m playwright install chromium` — host-level, once per machine (brew's Python is PEP 668-managed; bare pip refuses); `brew install ast-grep` — host-level, once per machine | `.swiftlint.yml` at repo root; add the lint line to the repo's check lists (`.afk-setup/config.yaml`); one committed snapshot test with its `__Snapshots__/` reference; the ast-grep lessons home |
 | Tauri | the React-web eslint deps for the webview; `@shadcn/lint` if the webview is Tailwind v4; `@ast-grep/cli` | `eslint.config.mjs` (with the core `complexity` rule on + `@shadcn/lint` registered, zero rules enabled) + the ESLint lessons home for the front end; `rustfmt.toml` + `clippy` (via `cargo clippy`) + the ast-grep lessons home for `src-tauri` |
+| Flutter / Flutter games | none: `flutter_lints` ships with `flutter create` | in every package's `analysis_options.yaml`: `analyzer.language` with `strict-casts`, `strict-inference` and `strict-raw-types` true; one `scripts/check` (pub get, analyze, test for each changed package; `--all` for every package) as the only check line; AFK lists as the Flutter note below says |
 | other | none automatic | ask the user what the project lints with before writing anything |
 
 Notes that do not fit a cell:
@@ -251,6 +253,25 @@ Notes that do not fit a cell:
   covers `App/` sources the package plugin never sees. Wire the command
   plugin as a check line and prove it with a violation probe before
   reporting done.
+- **Flutter: one check script, few tests.** `defaultChecks` and
+  `integrationChecks` are `scripts/check`; `baselineChecks` is `scripts/check
+  --all`, because plain `scripts/check` finds nothing changed on a fresh branch.
+  No iOS or Android build in any check: the phone install is the human gate.
+  Leave `worktreeSetup` empty; the script runs `pub get` and the pub cache is
+  shared. Put `gates: [scripts/check, "flutter analyze", "flutter test",
+  "flutter pub"]` on implementer, verifier and fixer: Flutter writes to its SDK
+  cache and `~/.pub-cache`, outside the sandbox. Ignore `.afk/`.
+  AFK does not protect `pubspec.yaml` or `pubspec.lock`, so a lane may add a
+  dependency; order tickets so two parallel lanes do not both change the lock.
+  Baseline tests: a test's name starts with a feature-map ID or says which bug
+  or data rule it guards, plus one golden per app. Put that in root `AGENTS.md`
+  and on one line in `roles.implementer.notes` (the config parser rejects
+  multi-line scalars), since `coduo-implement` is test-first by default. Before
+  deleting a test, break the line it covered and see another test fail; a key
+  wired on its own line needs its own assertion. Skip the `flutter/games`
+  templates, formatter gates and custom lint packages until a product needs
+  one. No lessons home yet: ast-grep parses Dart, but bare call patterns do not
+  match, so a first lesson uses a `kind` or `regex` rule.
 
 ## Lessons home
 
