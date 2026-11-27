@@ -112,6 +112,10 @@ Carries 1–3, 7 from epic #203.
 
 - <Something a lane can check, see references/criteria.md>
 
+## Journeys
+
+Changes ACT-01. Adds a row for the weekly goal.
+
 ## Allowed paths
 
 `src/billing/checkout.ts`, `src/billing/__tests__/checkout.test.ts`
@@ -131,6 +135,10 @@ Carries 1–3, 7 from epic #203.
 - **`## Acceptance criteria`** (or a `**Done when**` line) is required
   (`no_acceptance_criteria`). Read `references/criteria.md` before writing
   them. `afk validate` refuses several shapes outright.
+- **`## Journeys`** names the feature-map IDs the child changes, and says
+  "adds a row" for a new journey. Only where the repo has
+  `docs/feature-map.md`; leave it out for a child with no behaviour change.
+  The builder reads it; the verifier picks rows from the diff.
 - **Scope reaches a lane only through its own body.** The `afk:` block has
   no paths, and prose on the epic reaches no builder.
   - A file two children both write makes them one ticket, unless a split

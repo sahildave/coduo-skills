@@ -52,15 +52,21 @@ says to post or ask goes in your report.
    the change and passing with it. If you reverted to get red, check with
    `git diff` that the revert took; a red run with the green run's counts
    tested the fixed code.
-12. **Run the app**, or the closest runnable surface, against each experience
+12. **Keep the headless core in sync.** Where the repo has a feature map
+    (`docs/feature-map.md`), a behaviour change lands in the UI-free core
+    first, and the journey's row and its proof change in the same commit. A
+    new journey gets a row. If the app has a CLI, the journey gets a command
+    or an existing one reaches it. Reproduce a rule bug against the core
+    before fixing it. Name the journey IDs in the report.
+13. **Run the app**, or the closest runnable surface, against each experience
     criterion and report what you saw. Click every control you added and
     report what changed, because an empty handler still draws an enabled
     button. If the ticket cites a design board, list what the board has that
     the build lacks, and what the build has that the board lacks. If nothing
     can run, say so; the diff is not a substitute.
-13. **UI change: capture before and after**, one screenshot per changed
+14. **UI change: capture before and after**, one screenshot per changed
     screen. Read `references/evidence.md` for where they go and the PR table.
-14. **A fix ends in a lesson**, at the highest level that works:
+15. **A fix ends in a lesson**, at the highest level that works:
     `structure` (make the mistake impossible to write), `rule` (a lint rule
     with a red fixture), `test`, `standard` (one line in the coding
     standards), or `none` with a reason a reviewer could overrule. Search the
